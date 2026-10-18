@@ -39,7 +39,17 @@ export type MutationListener = (event: MutationEvent) => void;
 export class Vault {
   private listeners = new Set<MutationListener>();
 
-  constructor(public readonly root: string) {}
+  // --view-only: every mutating method refuses before touching disk, so
+  // no route or MCP tool can write user content even if it slips past the
+  // HTTP guard.
+  constructor(
+    public readonly root: string,
+    public readonly viewOnly = false,
+  ) {}
+
+  private assertWritable(): void {
+    if (this.viewOnly) throw new VaultError("vault is view-only", "VIEW_ONLY");
+  }
 
   onMutation(l: MutationListener): () => void {
     this.listeners.add(l);
@@ -90,6 +100,7 @@ export class Vault {
   }
 
   async writeNote(rel: string, content: string): Promise<NoteData> {
+    this.assertWritable();
     assertMarkdown(rel);
     assertSafePath(rel);
     const abs = this.abs(rel);
@@ -102,6 +113,7 @@ export class Vault {
   }
 
   async deleteNote(rel: string): Promise<string> {
+    this.assertWritable();
     assertMarkdown(rel);
     const trashed = await this.trashPath(rel, false);
     this.notify("delete", normalizeRel(rel), trashed);
@@ -109,6 +121,7 @@ export class Vault {
   }
 
   async renameNote(from: string, to: string): Promise<void> {
+    this.assertWritable();
     assertMarkdown(from);
     assertMarkdown(to);
     // `from` may be a pathological pre-V42 file; only enforce on the target.
@@ -125,6 +138,7 @@ export class Vault {
   }
 
   async mkdirFolder(rel: string): Promise<void> {
+    this.assertWritable();
     const norm = normalizeRel(rel);
     if (norm === "") return;
     assertSafePath(norm);
@@ -133,6 +147,7 @@ export class Vault {
   }
 
   async deleteFolder(rel: string): Promise<string> {
+    this.assertWritable();
     const norm = normalizeRel(rel);
     if (norm === "" || norm.startsWith(BRAIN_REL)) {
       throw new VaultError("refuse delete root/brain", "INVALID_PATH");
@@ -168,6 +183,7 @@ export class Vault {
     fileName: string,
     bytes: Uint8Array | ArrayBuffer,
   ): Promise<string> {
+    this.assertWritable();
     const rel = this.mediaPathFor(noteRel, fileName);
     const abs = this.abs(rel);
     await mkdir(dirname(abs), { recursive: true });
@@ -195,6 +211,7 @@ export class Vault {
   }
 
   async restoreFromTrash(trashRel: string): Promise<string> {
+    this.assertWritable();
     const norm = normalizeRel(trashRel);
     if (!norm.startsWith(`${TRASH_REL}/`)) {
       throw new VaultError("not a trash path", "INVALID_PATH");

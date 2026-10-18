@@ -34,6 +34,9 @@ override wins; default is read+write.
 ## CLI
 - `brain` runs the server with MCP mounted by default
 - `brain --mcp-disabled` skips mounting the MCP routes
+- `brain --view-only` leaves `write_note` / `append_note` unregistered,
+  whatever the per-folder perms say, and prepends a view-only notice to the
+  server instructions
 
 ## Native streamable-HTTP clients
 

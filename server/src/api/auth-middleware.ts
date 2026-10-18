@@ -17,6 +17,8 @@ import type { APIKeyStore } from "../auth/api-keys";
 const OPEN_PATHS = new Set([
   "/api/auth/status",
   "/api/auth/login",
+  // --view-only flag + version; nothing sensitive.
+  "/api/server-info",
   // V64: OAuth discovery endpoints MUST be reachable without a token —
   // the whole point is to let a client learn how to obtain one.
   "/.well-known/oauth-protected-resource",

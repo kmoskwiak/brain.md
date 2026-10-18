@@ -111,6 +111,8 @@ interface TreeProps {
   onDelete: (path: string, isFolder: boolean) => void;
   onSetIcon: (path: string) => void;
   onSetMcpPerms?: (path: string) => void;
+  // --view-only server: no create/rename/delete/icon/perms actions
+  viewOnly?: boolean;
 }
 
 export function FileTree(props: TreeProps) {
@@ -120,15 +122,22 @@ export function FileTree(props: TreeProps) {
     return (
       <div className="tree-empty">
         <p>No notes yet.</p>
-        <button className="btn primary" onClick={() => props.onCreateNote("")}>
-          <PlusIcon /> New note
-        </button>
+        {props.viewOnly ? null : (
+          <button className="btn primary" onClick={() => props.onCreateNote("")}>
+            <PlusIcon /> New note
+          </button>
+        )}
       </div>
     );
   }
 
   const ctxItems = (node: Node): MenuItem[] => {
     const isFolder = node.type === "folder";
+    if (props.viewOnly) {
+      return isFolder
+        ? []
+        : [{ label: "Open", icon: <FileIcon />, onClick: () => props.onOpen(node.path) }];
+    }
     return isFolder
       ? [
           { label: "New note here", icon: <PlusIcon />, onClick: () => props.onCreateNote(node.path) },
@@ -174,6 +183,7 @@ interface ChildrenProps extends TreeProps {
 }
 
 function RowDropdownMenu({ items }: { items: MenuItem[] }) {
+  if (items.length === 0) return null;
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -212,6 +222,7 @@ function RowContextMenu({
   items: MenuItem[];
   children: React.ReactNode;
 }) {
+  if (items.length === 0) return <>{children}</>;
   return (
     <RadixContextMenu>
       <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>

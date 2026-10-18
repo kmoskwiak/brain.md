@@ -652,7 +652,20 @@ brainmd --version
 brainmd --vault-dir <path>   # -v <path>
 brainmd --port <n>           # -p <n>
 brainmd --mcp-disabled       # skip mounting MCP at /mcp/*
+brainmd --view-only          # preview UI, no edits via API or MCP
 ```
+
+`--view-only` serves the vault for viewing only. The web UI shows the
+rendered preview without the editor, and Settings, History and Trash are
+hidden. Every mutating `/api/*` request gets `403 VIEW_ONLY` (login and
+logout still work), and MCP drops `write_note` / `append_note` whatever
+the folder permissions say. Git autocommit is off and `git init` is
+skipped.
+
+This restricts what can be changed *through brain.md*, not the
+filesystem: the server still keeps its own state in `.brain/` (login
+sessions, the search cache, RAG vectors, API-key last-used times), so
+the vault must stay writable.
 
 Precedence: **CLI flag > env var > XDG default**. Unknown flag →
 stderr error + exit 2.

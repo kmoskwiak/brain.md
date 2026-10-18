@@ -26,6 +26,9 @@ async function jsonOrThrow<T>(res: Response): Promise<T> {
 }
 
 export const api = {
+  async serverInfo(): Promise<{ viewOnly: boolean; version: string }> {
+    return jsonOrThrow(await fetch(`${BASE}/api/server-info`));
+  },
   async tree(): Promise<TreeData> {
     return jsonOrThrow(await fetch(`${BASE}/api/tree`));
   },
