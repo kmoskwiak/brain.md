@@ -18,7 +18,7 @@ import {
   resolveFolderPerms,
   type McpFolderPerms,
 } from "../api/folder-perms";
-import { loadMcpInstructions } from "./instructions";
+import { loadMcpInstructions, READ_ONLY_NOTICE } from "./instructions";
 import { VERSION } from "../version";
 import {
   related as qRelated,
@@ -74,6 +74,7 @@ function collectTasks(index: VaultIndex): Array<{
 //
 // Tools: search_notes, similar_notes, read_note, list_notes,
 //        get_backlinks, list_tags, get_tasks, write_note, append_note
+// (write_note / append_note are not registered under --read-only)
 // Resources: vault://tree, vault://note/<path>
 
 interface McpDeps {
@@ -81,6 +82,7 @@ interface McpDeps {
   index: VaultIndex;
   pipeline: RagPipeline;
   ragEnabled: () => boolean;
+  readOnly?: boolean;
 }
 
 async function readPerms(vault: Vault): Promise<Record<string, McpFolderPerms>> {
@@ -312,51 +314,54 @@ function registerHandlers(server: McpServer, deps: McpDeps): void {
     },
   );
 
-  server.registerTool(
-    "write_note",
-    {
-      description: "Create or overwrite a note. Content is full body.",
-      inputSchema: {
-        path: z.string().min(1),
-        content: z.string(),
+  // --read-only: write tools are simply absent, regardless of folder perms.
+  if (!deps.readOnly) {
+    server.registerTool(
+      "write_note",
+      {
+        description: "Create or overwrite a note. Content is full body.",
+        inputSchema: {
+          path: z.string().min(1),
+          content: z.string(),
+        },
       },
-    },
-    async ({ path, content }) => {
-      const perms = resolveFolderPerms(path, await readPerms(vault));
-      if (!perms.write) denied("write", path);
-      const r = await vault.writeNote(path, content);
-      logCall("write_note", { path, bytes: content.length }, true);
-      return { content: [{ type: "text", text: JSON.stringify({ ok: true, ...r }) }] };
-    },
-  );
+      async ({ path, content }) => {
+        const perms = resolveFolderPerms(path, await readPerms(vault));
+        if (!perms.write) denied("write", path);
+        const r = await vault.writeNote(path, content);
+        logCall("write_note", { path, bytes: content.length }, true);
+        return { content: [{ type: "text", text: JSON.stringify({ ok: true, ...r }) }] };
+      },
+    );
 
-  server.registerTool(
-    "append_note",
-    {
-      description:
-        "Append a paragraph to an existing note (ensures a blank-line separator).",
-      inputSchema: {
-        path: z.string().min(1),
-        content: z.string().min(1),
+    server.registerTool(
+      "append_note",
+      {
+        description:
+          "Append a paragraph to an existing note (ensures a blank-line separator).",
+        inputSchema: {
+          path: z.string().min(1),
+          content: z.string().min(1),
+        },
       },
-    },
-    async ({ path, content }) => {
-      const perms = resolveFolderPerms(path, await readPerms(vault));
-      if (!perms.write) denied("write", path);
-      let body = "";
-      try {
-        const cur = await vault.readNote(path);
-        body = cur.content;
-      } catch {
-        body = "";
-      }
-      const joiner = body === "" ? "" : body.endsWith("\n\n") ? "" : body.endsWith("\n") ? "\n" : "\n\n";
-      const next = body + joiner + content + (content.endsWith("\n") ? "" : "\n");
-      const r = await vault.writeNote(path, next);
-      logCall("append_note", { path, bytes: content.length }, true);
-      return { content: [{ type: "text", text: JSON.stringify({ ok: true, ...r }) }] };
-    },
-  );
+      async ({ path, content }) => {
+        const perms = resolveFolderPerms(path, await readPerms(vault));
+        if (!perms.write) denied("write", path);
+        let body = "";
+        try {
+          const cur = await vault.readNote(path);
+          body = cur.content;
+        } catch {
+          body = "";
+        }
+        const joiner = body === "" ? "" : body.endsWith("\n\n") ? "" : body.endsWith("\n") ? "\n" : "\n\n";
+        const next = body + joiner + content + (content.endsWith("\n") ? "" : "\n");
+        const r = await vault.writeNote(path, next);
+        logCall("append_note", { path, bytes: content.length }, true);
+        return { content: [{ type: "text", text: JSON.stringify({ ok: true, ...r }) }] };
+      },
+    );
+  }
 
   // ---------------- V54: RAG-derived tools ----------------
 
@@ -600,7 +605,12 @@ export function createMcp(deps: McpDeps) {
       // V68: owner-editable, vault-scoped instructions surfaced to the model
       // via the MCP initialize response. Read per request so edits to
       // <VAULT>/.brain/mcp-prompt.md take effect without a server restart.
-      const instructions = await loadMcpInstructions(deps.vault);
+      const loaded = await loadMcpInstructions(deps.vault, {
+        seed: !deps.readOnly,
+      });
+      const instructions = deps.readOnly
+        ? `${READ_ONLY_NOTICE}${loaded ? `\n${loaded}` : ""}`
+        : loaded;
       const server = new McpServer(
         { name: "brain.md", version: VERSION },
         instructions ? { instructions } : undefined,

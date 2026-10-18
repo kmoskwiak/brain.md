@@ -46,7 +46,9 @@ async function main() {
     gitAutocommit: config.gitAutocommit,
     gitDebounceMs: config.gitDebounceMs,
     mcpDisabled: action.options.mcpDisabled,
+    readOnly: action.options.readOnly,
   });
+  const readOnly = action.options.readOnly ?? false;
 
   await authStore.load();
   // B19 + V66: persist session tokens + named API keys to vault.
@@ -54,7 +56,8 @@ async function main() {
   await apiKeys.bindVault(vault);
   const loaded = await settings.load();
   // settings.json overrides env defaults
-  autocommit.setEnabled(loaded.git.autocommit);
+  // --read-only: nothing to commit, and `git init` would write into the vault.
+  autocommit.setEnabled(readOnly ? false : loaded.git.autocommit);
   autocommit.setDebounceMs(loaded.git.debounceMs);
 
   if (autocommit.opts.enabled) {
@@ -65,7 +68,14 @@ async function main() {
       autocommit.setEnabled(false);
     }
   }
-  await index.loadOrBuild();
+  try {
+    await index.loadOrBuild();
+  } catch (e) {
+    // --read-only may sit on a read-only FS: the index is already built in
+    // memory, only the .brain/index.json cache write failed.
+    if (!readOnly) throw e;
+    console.warn("[index] cache persist failed (read-only); continuing:", e);
+  }
 
   // T104: RAG startup. open store if enabled; non-blocking initial reindex
   // if empty. Errors surface via console but never crash the server.
@@ -97,7 +107,9 @@ async function main() {
   await mountEmbeddedWeb(app);
 
   app.listen(config.port);
-  console.log(`brain.md server :${config.port} → vault ${config.vaultDir}`);
+  console.log(
+    `brain.md server :${config.port} → vault ${config.vaultDir}${readOnly ? " (read-only)" : ""}`,
+  );
 }
 
 void main();

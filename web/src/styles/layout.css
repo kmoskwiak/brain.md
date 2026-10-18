@@ -424,6 +424,20 @@
   }
 }
 
+/* --read-only server: preview is the only pane, on every viewport. Placed
+   after the mobile block so it beats `.main:not(.show-preview)` hiding. */
+.main.read-only,
+.main.read-only.has-toolbar {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  grid-template-areas: "preview";
+  padding-bottom: 0;
+}
+.main.read-only .pane.preview-pane {
+  display: flex;
+  border: none;
+}
+
 @media (min-width: 841px) {
   .menu-btn {
     display: none;

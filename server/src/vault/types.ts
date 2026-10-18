@@ -25,6 +25,7 @@ export class VaultError extends Error {
       | "INVALID_PATH"
       | "INVALID_NAME"
       | "EXISTS"
+      | "READ_ONLY"
       | "IO",
   ) {
     super(message);

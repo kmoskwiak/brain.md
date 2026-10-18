@@ -652,7 +652,15 @@ brainmd --version
 brainmd --vault-dir <path>   # -v <path>
 brainmd --port <n>           # -p <n>
 brainmd --mcp-disabled       # skip mounting MCP at /mcp/*
+brainmd --read-only          # view-only: preview UI, no writes via API or MCP
 ```
+
+`--read-only` serves the vault for viewing only. The web UI shows the
+rendered preview without the editor, and Settings, History and Trash are
+hidden. Every mutating `/api/*` request gets `403 READ_ONLY` (login and
+logout still work), and MCP drops `write_note` / `append_note` whatever
+the folder permissions say. Git autocommit is off and `git init` is
+skipped. The only file written is the `.brain/index.json` search cache.
 
 Precedence: **CLI flag > env var > XDG default**. Unknown flag →
 stderr error + exit 2.

@@ -80,6 +80,15 @@ If you genuinely can't tell, ask the owner rather than guessing the folder.
   line — \`append_note\` or a targeted \`write_note\` is usually right.
 `;
 
+// --read-only: prepended to whatever instructions are active so it overrides
+// the "write it back" guidance above. The write tools aren't registered.
+export const READ_ONLY_NOTICE = `> **READ-ONLY MODE.** This brain.md server was started with \`--read-only\`.
+> No write tools are available (\`write_note\` / \`append_note\` are absent).
+> Do not attempt to create or modify notes; any "write it back" guidance
+> below does not apply. If the owner asks for a change, tell them the vault is
+> served read-only.
+`;
+
 /**
  * Load the active MCP instructions for a vault.
  *
@@ -91,7 +100,11 @@ If you genuinely can't tell, ask the owner rather than guessing the folder.
  * Always best-effort: any FS error falls back to the embedded default so the
  * MCP server never fails to start over a missing/locked config file.
  */
-export async function loadMcpInstructions(vault: Vault): Promise<string> {
+export async function loadMcpInstructions(
+  vault: Vault,
+  opts: { seed?: boolean } = {},
+): Promise<string> {
+  const seed = opts.seed ?? true;
   const abs = vault.abs(INSTRUCTIONS_REL);
   try {
     const raw = await readFile(abs, "utf8");
@@ -101,6 +114,8 @@ export async function loadMcpInstructions(vault: Vault): Promise<string> {
   } catch {
     // No override yet: seed one so the owner has a real file to edit, then
     // return the default. Seeding is best-effort — failures are non-fatal.
+    // Skipped under --read-only so the vault stays untouched.
+    if (!seed) return DEFAULT_MCP_INSTRUCTIONS;
     try {
       await mkdir(dirname(abs), { recursive: true });
       await writeFile(abs, DEFAULT_MCP_INSTRUCTIONS, "utf8");

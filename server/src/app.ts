@@ -35,6 +35,7 @@ import { CimdResolver } from "./auth/cimd";
 import { APIKeyStore } from "./auth/api-keys";
 import { apiKeyRoutes } from "./api/api-keys";
 import { folderPermsRoutes } from "./api/folder-perms";
+import { readOnlyGuard, serverInfoRoutes } from "./api/read-only";
 import { AuthStore } from "./auth/store";
 import { TokenStore } from "./auth/tokens";
 import { createMcp, mcpRoutes } from "./mcp/server";
@@ -44,10 +45,12 @@ export interface AppOptions {
   gitAutocommit?: boolean;
   gitDebounceMs?: number;
   mcpDisabled?: boolean;
+  readOnly?: boolean;
 }
 
 export function createApp(opts: AppOptions = {}) {
-  const vault = new Vault(opts.vaultDir ?? config.vaultDir);
+  const readOnly = opts.readOnly ?? false;
+  const vault = new Vault(opts.vaultDir ?? config.vaultDir, readOnly);
   const index = new VaultIndex(vault);
   const repo = new GitRepo(vault.root);
   const settings = new SettingsStore(vault);
@@ -79,7 +82,11 @@ export function createApp(opts: AppOptions = {}) {
 
   const app = new Elysia()
     .use(cors())
-    .use(authMiddleware(authStore, tokenStore, oauthStore, apiKeys))
+    .use(authMiddleware(authStore, tokenStore, oauthStore, apiKeys));
+  // --read-only: runs after auth so unauthenticated callers still get 401.
+  if (readOnly) app.use(readOnlyGuard());
+  app
+    .use(serverInfoRoutes(readOnly))
     .get("/health", () => ({ ok: true, vaultDir: vault.root }))
     // V64: OAuth discovery surface, served before everything else so it's
     // reachable even when auth.json gates the rest of the API.
@@ -114,6 +121,7 @@ export function createApp(opts: AppOptions = {}) {
       index,
       pipeline: ragPipeline,
       ragEnabled: () => settings.get().rag.enabled,
+      readOnly,
     });
     app.use(mcpRoutes(mcp));
   }

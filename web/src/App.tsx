@@ -118,6 +118,9 @@ export function App() {
   const [iconPickerPath, setIconPickerPath] = useState<string | null>(null);
   const [permsPath, setPermsPath] = useState<string | null>(null);
   const [showAbout, setShowAbout] = useState(false);
+  // --read-only server: preview-only UI. The server enforces it regardless;
+  // this just hides controls that would fail.
+  const [readOnly, setReadOnly] = useState(false);
   const sidebar = useSidebarSections(
     ["bookmarks", "vault", "tags", "outline", "backlinks", "related"],
     {
@@ -197,7 +200,12 @@ export function App() {
 
   const onOutlineJump = useCallback((line: number) => {
     const v = editorViewRef.current;
-    if (!v) return;
+    if (!v) {
+      // read-only: no editor mounted, scroll the preview alone
+      previewHandleRef.current?.setActiveLine(line);
+      previewHandleRef.current?.scrollToLine(line, { behavior: "smooth" });
+      return;
+    }
     const docLine = Math.max(1, Math.min(v.state.doc.lines, line));
     const lineObj = v.state.doc.line(docLine);
     syncLockRef.current = Date.now() + 250;
@@ -313,6 +321,13 @@ export function App() {
   useEffect(() => {
     void refreshTree();
   }, [refreshTree]);
+
+  useEffect(() => {
+    api
+      .serverInfo()
+      .then((i) => setReadOnly(i.readOnly))
+      .catch(() => {});
+  }, []);
 
   const refreshGit = useCallback(async () => {
     try {
@@ -462,6 +477,7 @@ export function App() {
 
   const onSave = useCallback(
     async (p: string, c: string) => {
+      if (readOnly) return;
       await api.writeNote(p, c);
       try {
         const bl = await api.backlinks(p);
@@ -475,7 +491,7 @@ export function App() {
       // is best-effort and silent: any failure → no toast at all.
       void suggestTagsAfterSave(p, c);
     },
-    [refreshAliases],
+    [readOnly, refreshAliases],
   );
 
   const suggestTagsAfterSave = useCallback(
@@ -644,11 +660,15 @@ export function App() {
     try {
       await api.readNote(rel);
     } catch {
+      if (readOnly) {
+        setToast("No daily note for today");
+        return;
+      }
       await api.writeNote(rel, `# ${name}\n\n`);
       await refreshTree();
     }
     await openNote(rel);
-  }, [dailyDir, openNote, refreshTree]);
+  }, [dailyDir, openNote, readOnly, refreshTree]);
 
   const refreshSettings = useCallback(async () => {
     try {
@@ -781,7 +801,9 @@ export function App() {
         </a>
         <span className="title">{path ? path.replace(/\.md$/, "") : ""}</span>
         <span className="saved">
-          {path
+          {readOnly
+            ? "read-only"
+            : path
             ? saveStatus === "saved"
               ? "saved"
               : saveStatus === "dirty"
@@ -797,23 +819,27 @@ export function App() {
         <IconBtn label="Quick switch (⌘O)" onClick={() => setCmd("switcher")}>
           <SearchIcon />
         </IconBtn>
-        <IconBtn
-          label={path && bookmarks.includes(path) ? "Remove bookmark" : "Bookmark"}
-          onClick={toggleBookmark}
-          disabled={!path}
-        >
-          <StarIcon filled={path ? bookmarks.includes(path) : false} />
-        </IconBtn>
+        {readOnly ? null : (
+          <IconBtn
+            label={path && bookmarks.includes(path) ? "Remove bookmark" : "Bookmark"}
+            onClick={toggleBookmark}
+            disabled={!path}
+          >
+            <StarIcon filled={path ? bookmarks.includes(path) : false} />
+          </IconBtn>
+        )}
         <IconBtn label="Daily note" onClick={openDaily}>
           <CalendarIcon />
         </IconBtn>
         <IconBtn label="Tasks" onClick={() => setShowTasks(true)}>
           <CheckSquareIcon />
         </IconBtn>
-        <IconBtn label="Trash" onClick={() => setShowTrash(true)}>
-          <TrashIcon />
-        </IconBtn>
-        {gitStatus?.enabled ? (
+        {readOnly ? null : (
+          <IconBtn label="Trash" onClick={() => setShowTrash(true)}>
+            <TrashIcon />
+          </IconBtn>
+        )}
+        {gitStatus?.enabled && !readOnly ? (
           <>
             <IconBtn label="History" onClick={() => setShowHistory(true)}>
               <HistoryIcon />
@@ -827,9 +853,11 @@ export function App() {
           </>
         ) : null}
         <ThemeButton theme={theme} setTheme={setTheme} />
-        <IconBtn label="Settings" onClick={() => setShowSettings(true)}>
-          <SettingsIcon />
-        </IconBtn>
+        {readOnly ? null : (
+          <IconBtn label="Settings" onClick={() => setShowSettings(true)}>
+            <SettingsIcon />
+          </IconBtn>
+        )}
         <IconBtn label="About brain.md" onClick={() => setShowAbout(true)}>
           <InfoCircledIcon />
         </IconBtn>
@@ -857,12 +885,16 @@ export function App() {
           <IconBtn label="Search (⌘P)" onClick={() => setCmd("search")}>
             <SearchIcon />
           </IconBtn>
-          <IconBtn label="New note" onClick={() => createNote("")}>
-            <FilePlusIcon />
-          </IconBtn>
-          <IconBtn label="New folder" onClick={() => createFolder("")}>
-            <FolderPlusIcon />
-          </IconBtn>
+          {readOnly ? null : (
+            <>
+              <IconBtn label="New note" onClick={() => createNote("")}>
+                <FilePlusIcon />
+              </IconBtn>
+              <IconBtn label="New folder" onClick={() => createFolder("")}>
+                <FolderPlusIcon />
+              </IconBtn>
+            </>
+          )}
         </header>
         <div className="sidebar-scroll">
           <Accordion
@@ -904,6 +936,7 @@ export function App() {
                   activePath={path}
                   folderIcons={folderMeta.icons}
                   basenameCounts={basenameCounts}
+                  readOnly={readOnly}
                   onOpen={(p) => {
                     void openNote(p);
                     setDrawerOpen(false);
@@ -977,85 +1010,116 @@ export function App() {
 
       {drawerOpen && isMobile ? <div className="drawer-backdrop open" onClick={() => setDrawerOpen(false)} /> : null}
 
-      <main ref={mainRef} className={clsx("main", isMobile && mobileView === "preview" && "show-preview", path && "has-toolbar")}>
-        <div className="pane-head editor-head">
-          <PenIcon />
-          <span>Editor</span>
-        </div>
-        <div className="pane-head preview-head">
-          <EyeIcon />
-          <span>Preview</span>
-        </div>
-        {path ? (
-          <div className="toolbar-row">
-            <EditorToolbar
-              getView={() => editorViewRef.current}
-              onUploadClick={() => uploadInputRef.current?.click()}
-            />
+      {readOnly ? (
+        <main ref={mainRef} className="main read-only">
+          <section className="pane preview-pane">
+            {tagFilter ? (
+              <TagFilterView tag={tagFilter} notes={tagFilteredNotes ?? []} onOpen={openNote} onClear={() => setTagFilter(null)} />
+            ) : path ? (
+              <Preview
+                ref={previewHandleRef}
+                content={content}
+                notePath={path}
+                resolveByBasename={resolveWikilink}
+                onOpenNote={openNote}
+                onOpenTag={(tag) => {
+                  setTagFilter(tag);
+                  setPath(null);
+                  setContent("");
+                  window.location.hash = `#/tag/${encodeURIComponent(tag)}`;
+                }}
+                onScrollLine={onPreviewScrollLine}
+                onSelectLine={onPreviewSelectLine}
+              />
+            ) : (
+              <div className="empty-state">
+                <h2>No note open</h2>
+                <p className="hint">Pick a note from the sidebar or press ⌘O to switch.</p>
+              </div>
+            )}
+          </section>
+        </main>
+      ) : (
+        <main ref={mainRef} className={clsx("main", isMobile && mobileView === "preview" && "show-preview", path && "has-toolbar")}>
+          <div className="pane-head editor-head">
+            <PenIcon />
+            <span>Editor</span>
           </div>
-        ) : null}
-        <section className="pane editor-pane">
-          {tagFilter ? (
-            <TagFilterView tag={tagFilter} notes={tagFilteredNotes ?? []} onOpen={openNote} onClear={() => setTagFilter(null)} />
-          ) : path ? (
-            <>
-              <Editor
-                value={content}
-                onChange={setContent}
-                onBlur={() => void flush()}
-                basenames={basenames}
-                onUploadMedia={uploadMediaForCurrent}
-                viewRefOut={editorViewRef}
-                onCursorLine={onEditorCursorLine}
-                onScrollLine={onEditorScrollLine}
+          <div className="pane-head preview-head">
+            <EyeIcon />
+            <span>Preview</span>
+          </div>
+          {path ? (
+            <div className="toolbar-row">
+              <EditorToolbar
+                getView={() => editorViewRef.current}
+                onUploadClick={() => uploadInputRef.current?.click()}
               />
-              <input
-                ref={uploadInputRef}
-                type="file"
-                accept="*/*"
-                multiple
-                hidden
-                onChange={onFileInputChange}
-              />
-            </>
-          ) : (
-            <div className="empty-state">
-              <h2>No note open</h2>
-              <p className="hint">Pick a note from the sidebar or press ⌘O to switch.</p>
-              <button className="btn primary" onClick={() => createNote("")}>
-                <PlusIcon /> New note
-              </button>
             </div>
-          )}
-        </section>
-        <section className="pane preview-pane">
-          <Preview
-            ref={previewHandleRef}
-            content={content}
-            notePath={path}
-            resolveByBasename={resolveWikilink}
-            onOpenNote={openNote}
-            onOpenTag={(tag) => {
-              setTagFilter(tag);
-              setPath(null);
-              setContent("");
-              window.location.hash = `#/tag/${encodeURIComponent(tag)}`;
-            }}
-            onScrollLine={onPreviewScrollLine}
-            onSelectLine={onPreviewSelectLine}
-          />
-        </section>
-        {path && !isMobile ? (
-          <SyncConnector
-            mainRef={mainRef}
-            editorViewRef={editorViewRef}
-            trigger={activeLine}
-            hidden={isMobile}
-          />
-        ) : null}
-      </main>
+          ) : null}
+          <section className="pane editor-pane">
+            {tagFilter ? (
+              <TagFilterView tag={tagFilter} notes={tagFilteredNotes ?? []} onOpen={openNote} onClear={() => setTagFilter(null)} />
+            ) : path ? (
+              <>
+                <Editor
+                  value={content}
+                  onChange={setContent}
+                  onBlur={() => void flush()}
+                  basenames={basenames}
+                  onUploadMedia={uploadMediaForCurrent}
+                  viewRefOut={editorViewRef}
+                  onCursorLine={onEditorCursorLine}
+                  onScrollLine={onEditorScrollLine}
+                />
+                <input
+                  ref={uploadInputRef}
+                  type="file"
+                  accept="*/*"
+                  multiple
+                  hidden
+                  onChange={onFileInputChange}
+                />
+              </>
+            ) : (
+              <div className="empty-state">
+                <h2>No note open</h2>
+                <p className="hint">Pick a note from the sidebar or press ⌘O to switch.</p>
+                <button className="btn primary" onClick={() => createNote("")}>
+                  <PlusIcon /> New note
+                </button>
+              </div>
+            )}
+          </section>
+          <section className="pane preview-pane">
+            <Preview
+              ref={previewHandleRef}
+              content={content}
+              notePath={path}
+              resolveByBasename={resolveWikilink}
+              onOpenNote={openNote}
+              onOpenTag={(tag) => {
+                setTagFilter(tag);
+                setPath(null);
+                setContent("");
+                window.location.hash = `#/tag/${encodeURIComponent(tag)}`;
+              }}
+              onScrollLine={onPreviewScrollLine}
+              onSelectLine={onPreviewSelectLine}
+            />
+          </section>
+          {path && !isMobile ? (
+            <SyncConnector
+              mainRef={mainRef}
+              editorViewRef={editorViewRef}
+              trigger={activeLine}
+              hidden={isMobile}
+            />
+          ) : null}
+        </main>
+      )}
 
-      {isMobile ? (
+      {isMobile && !readOnly ? (
         <nav className="mobile-tabs" aria-label="Editor view">
           <Tabs
             value={mobileView}
@@ -1076,7 +1140,7 @@ export function App() {
 
       <CommandBar mode={cmd} onClose={() => setCmd(null)} onOpenNote={openNote} tree={tree} />
 
-      {showSettings ? (
+      {showSettings && !readOnly ? (
         <Settings
           onClose={() => setShowSettings(false)}
           theme={theme}
@@ -1096,14 +1160,14 @@ export function App() {
         />
       ) : null}
 
-      {showTrash ? (
+      {showTrash && !readOnly ? (
         <TrashView
           onClose={() => setShowTrash(false)}
           onRestored={() => void refreshTree()}
         />
       ) : null}
 
-      {showHistory ? (
+      {showHistory && !readOnly ? (
         <HistoryPanel
           path={path}
           onClose={() => setShowHistory(false)}
@@ -1118,7 +1182,7 @@ export function App() {
         />
       ) : null}
 
-      {iconPickerPath !== null ? (
+      {iconPickerPath !== null && !readOnly ? (
         <IconPicker
           folderPath={iconPickerPath}
           currentIcon={folderMeta.icons[iconPickerPath] ?? null}
@@ -1135,7 +1199,7 @@ export function App() {
         />
       ) : null}
 
-      {permsPath !== null ? (
+      {permsPath !== null && !readOnly ? (
         <FolderPermsDialog
           folderPath={permsPath}
           onClose={() => setPermsPath(null)}
