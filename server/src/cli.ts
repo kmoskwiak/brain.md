@@ -6,6 +6,7 @@ export interface CliOptions {
   vaultDir?: string;
   port?: number;
   mcpDisabled?: boolean;
+  viewOnly?: boolean;
 }
 
 export type CliAction =
@@ -30,6 +31,7 @@ Options:
                                     ($HOME/.local/share/brain.md/vault)
   -p, --port <n>           HTTP port. Default: 3000
       --mcp-disabled       Don't mount the MCP server at /mcp/*
+      --view-only          Serve the vault view-only (no edits via UI, API or MCP)
   -h, --help               Show this help and exit
       --version            Show version and exit
 
@@ -83,6 +85,11 @@ export function parseArgs(argv: string[]): CliAction {
     }
     if (a === "--mcp-disabled") {
       opts.mcpDisabled = true;
+      i++;
+      continue;
+    }
+    if (a === "--view-only") {
+      opts.viewOnly = true;
       i++;
       continue;
     }

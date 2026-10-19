@@ -26,3 +26,24 @@ describe("CLI --mcp-disabled — T123 / V46", () => {
     }
   });
 });
+
+describe("CLI --view-only", () => {
+  test("default = viewOnly undefined", () => {
+    const r = parseArgs([]);
+    if (r.kind === "run") expect(r.options.viewOnly).toBeUndefined();
+  });
+
+  test("--view-only sets the flag", () => {
+    const r = parseArgs(["--view-only"]);
+    expect(r.kind).toBe("run");
+    if (r.kind === "run") expect(r.options.viewOnly).toBe(true);
+  });
+
+  test("combines with --port and --vault-dir", () => {
+    const r = parseArgs(["--view-only", "--port", "4000", "-v", "/tmp/v"]);
+    expect(r).toEqual({
+      kind: "run",
+      options: { viewOnly: true, port: 4000, vaultDir: "/tmp/v" },
+    });
+  });
+});

@@ -46,7 +46,9 @@ async function main() {
     gitAutocommit: config.gitAutocommit,
     gitDebounceMs: config.gitDebounceMs,
     mcpDisabled: action.options.mcpDisabled,
+    viewOnly: action.options.viewOnly,
   });
+  const viewOnly = action.options.viewOnly ?? false;
 
   await authStore.load();
   // B19 + V66: persist session tokens + named API keys to vault.
@@ -54,7 +56,8 @@ async function main() {
   await apiKeys.bindVault(vault);
   const loaded = await settings.load();
   // settings.json overrides env defaults
-  autocommit.setEnabled(loaded.git.autocommit);
+  // --view-only: nothing to commit, and `git init` would write into the vault.
+  autocommit.setEnabled(viewOnly ? false : loaded.git.autocommit);
   autocommit.setDebounceMs(loaded.git.debounceMs);
 
   if (autocommit.opts.enabled) {
@@ -97,7 +100,9 @@ async function main() {
   await mountEmbeddedWeb(app);
 
   app.listen(config.port);
-  console.log(`brain.md server :${config.port} → vault ${config.vaultDir}`);
+  console.log(
+    `brain.md server :${config.port} → vault ${config.vaultDir}${viewOnly ? " (view-only)" : ""}`,
+  );
 }
 
 void main();
