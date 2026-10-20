@@ -12,7 +12,7 @@ import { VERSION } from "../version";
 //   2. **Local disk**   — web/dist/ next to the cwd (dev workflow after
 //                         `bun --cwd web run build`).
 //   3. **GitHub cache** — last-resort download from a GitHub Release into
-//                         `$XDG_CACHE_HOME/brain.md/web/<version>/`. Lets
+//                         `$XDG_CACHE_HOME/folio/web/<version>/`. Lets
 //                         someone clone the repo, run `bun start` and have
 //                         the UI work without building the frontend first.
 
@@ -45,7 +45,7 @@ function mimeFor(path: string): string {
 function cacheDir(): string {
   const xdg = process.env.XDG_CACHE_HOME?.trim();
   const base = xdg && xdg !== "" ? xdg : join(homedir(), ".cache");
-  return join(base, "brain.md", "web", VERSION);
+  return join(base, "folio", "web", VERSION);
 }
 
 interface Resolver {
@@ -85,7 +85,7 @@ function diskResolver(dir: string): Resolver {
 
 async function downloadAndExtract(target: string): Promise<boolean> {
   await mkdir(target, { recursive: true });
-  const url = `https://github.com/mi4uu/brain.md/releases/download/v${VERSION}/web-dist.tar.gz`;
+  const url = `https://github.com/kmoskwiak/folio/releases/download/v${VERSION}/web-dist.tar.gz`;
   try {
     const res = await fetch(url);
     if (!res.ok) {
@@ -123,7 +123,7 @@ async function resolveWeb(): Promise<Resolver> {
   }
   // Tier 2
   const candidates = [
-    process.env.BRAIN_WEB_DIR?.trim() || "",
+    process.env.FOLIO_WEB_DIR?.trim() || process.env.BRAIN_WEB_DIR?.trim() || "",
     join(process.cwd(), "web", "dist"),
     join(process.cwd(), "..", "web", "dist"),
   ].filter(Boolean);
@@ -147,7 +147,7 @@ async function resolveWeb(): Promise<Resolver> {
   }
   console.warn(
     `[web] no web client available. Run \`bun --cwd web run build\`, ` +
-      `download the binary from GitHub Releases, or set BRAIN_WEB_DIR.`,
+      `download the binary from GitHub Releases, or set FOLIO_WEB_DIR.`,
   );
   return { kind: "none", async has() { return false; }, async read() { return null; } };
 }

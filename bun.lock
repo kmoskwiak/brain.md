@@ -3,13 +3,13 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "brain.md",
+      "name": "folio",
       "devDependencies": {
         "typescript": "^5.6.3",
       },
     },
     "server": {
-      "name": "@brain/server",
+      "name": "@folio/server",
       "version": "0.2.8",
       "dependencies": {
         "@elysiajs/cors": "^1.1.1",
@@ -28,7 +28,7 @@
       },
     },
     "web": {
-      "name": "@brain/web",
+      "name": "@folio/web",
       "version": "0.2.8",
       "dependencies": {
         "@codemirror/autocomplete": "^6.18.3",
@@ -138,9 +138,9 @@
 
     "@borewit/text-codec": ["@borewit/text-codec@0.2.2", "", {}, "sha512-DDaRehssg1aNrH4+2hnj1B7vnUGEjU6OIlyRdkMd0aUdIUvKXrJfXsy8LVtXAy7DRvYVluWbMspsRhz2lcW0mQ=="],
 
-    "@brain/server": ["@brain/server@workspace:server"],
+    "@folio/server": ["@folio/server@workspace:server"],
 
-    "@brain/web": ["@brain/web@workspace:web"],
+    "@folio/web": ["@folio/web@workspace:web"],
 
     "@braintree/sanitize-url": ["@braintree/sanitize-url@7.1.2", "", {}, "sha512-jigsZK+sMF/cuiB7sERuo9V7N9jx+dhmHHnQyDSVdpZwVutaBu7WvNYqMDLSgFgfB30n452TP3vjDAvFC973mA=="],
 

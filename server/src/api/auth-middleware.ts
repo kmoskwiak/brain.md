@@ -77,12 +77,13 @@ export function authMiddleware(
     const url = new URL(request.url);
     const path = url.pathname;
 
-    // BRAINMD_LOG_OAUTH=1 enables verbose tracing of every /oauth/* and
-    // /.well-known/* request so we can diagnose what spec-incompliant
+    // FOLIO_LOG_OAUTH=1 (or the legacy BRAINMD_LOG_OAUTH=1) enables
+    // verbose tracing of every /oauth/* and /.well-known/* request so
+    // we can diagnose what spec-incompliant
     // MCP clients (looking at you, current Claude.ai connector) actually
     // send. Off by default — log volume would be silly otherwise.
     if (
-      process.env.BRAINMD_LOG_OAUTH === "1" &&
+      (process.env.FOLIO_LOG_OAUTH === "1" || process.env.BRAINMD_LOG_OAUTH === "1") &&
       (path.startsWith("/oauth/") || path.startsWith("/.well-known/"))
     ) {
       const ct = request.headers.get("content-type") ?? "-";

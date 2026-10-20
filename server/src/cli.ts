@@ -21,14 +21,16 @@ export class CliError extends Error {
   }
 }
 
-const USAGE = `Usage: brainmd [options]
+const USAGE = `Usage: folio [options]
 
 A local-first second brain for you and your AI agents.
 
 Options:
   -v, --vault-dir <path>   Path to the vault directory.
-                           Default: $XDG_DATA_HOME/brain.md/vault
-                                    ($HOME/.local/share/brain.md/vault)
+                           Default: $XDG_DATA_HOME/folio/vault
+                                    ($HOME/.local/share/folio/vault)
+                           An existing brain.md/ directory there is
+                           reused if folio/ does not exist yet.
   -p, --port <n>           HTTP port. Default: 3000
       --mcp-disabled       Don't mount the MCP server at /mcp/*
       --view-only          Serve the vault view-only (no edits via UI, API or MCP)

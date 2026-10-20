@@ -15,7 +15,7 @@ of agent reach without locking down the whole vault.
 
 ## How resolution works
 
-When an MCP tool touches `Journal/Private/2026-05-15.md`, brain.md
+When an MCP tool touches `Journal/Private/2026-05-15.md`, folio
 walks the folder chain:
 
 1. `Journal/Private` → checks for override

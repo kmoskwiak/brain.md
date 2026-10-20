@@ -93,17 +93,6 @@
   }
 }
 
-/* Sponsor heart: subtle muted pink at rest, full pink on hover */
-.topbar .sponsor-btn {
-  color: var(--text-3);
-  opacity: 0.75;
-  transition: color var(--dur-fast) var(--ease), opacity var(--dur-fast) var(--ease);
-}
-.topbar .sponsor-btn:hover {
-  color: #ec4899; /* pink-500 */
-  opacity: 1;
-}
-
 .topbar .title {
   font-weight: 600;
   letter-spacing: -0.01em;
@@ -426,8 +415,7 @@
 
 /* --view-only server: preview is the only pane, on every viewport. Placed
    after the mobile block so it beats `.main:not(.show-preview)` hiding. */
-.main.view-only,
-.main.view-only.has-toolbar {
+.main.view-only {
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr);
   grid-template-areas: "preview";

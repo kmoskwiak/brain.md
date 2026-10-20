@@ -68,7 +68,7 @@ export function oauthDiscoveryRoutes() {
         authorization_servers: [origin],
         scopes_supported: SUPPORTED_SCOPES,
         bearer_methods_supported: ["header"],
-        resource_documentation: "https://github.com/mi4uu/brain.md#-mcp-server",
+        resource_documentation: "https://github.com/kmoskwiak/folio#-mcp-server",
       };
     })
     .get("/.well-known/oauth-authorization-server", ({ request }) => {
@@ -85,7 +85,7 @@ export function oauthDiscoveryRoutes() {
         token_endpoint_auth_methods_supported: ["none"],
         code_challenge_methods_supported: ["S256"],
         client_id_metadata_document_supported: true,
-        service_documentation: "https://github.com/mi4uu/brain.md#-mcp-server",
+        service_documentation: "https://github.com/kmoskwiak/folio#-mcp-server",
       };
     });
 }

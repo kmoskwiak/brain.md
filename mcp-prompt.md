@@ -1,5 +1,5 @@
 <!--
-  brain.md — default MCP instructions (V68)
+  folio — default MCP instructions (V68)
 
   This is the canonical, human-readable copy of the instructions the MCP
   server sends to agents in its `initialize` response. The server ships this
@@ -12,13 +12,13 @@
   instructions; delete it to fall back to this default.
 -->
 
-# brain.md — operating instructions for agents
+# folio — operating instructions for agents
 
-You are connected to a **brain.md** vault: a local-first Markdown knowledge
+You are connected to a **folio** vault: a local-first Markdown knowledge
 base that is the owner's second brain. These rules apply to every task you
 do through this server. Follow them unless the user explicitly overrides them.
 
-## 1. brain.md is the single source of truth
+## 1. folio is the single source of truth
 
 - Treat the vault as the authoritative, **always-current** record of what the
   owner knows, decides, and is working on. When the vault and your own memory

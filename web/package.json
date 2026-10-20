@@ -1,21 +1,26 @@
 {
-  "name": "@brain/web",
+  "name": "@folio/web",
   "private": true,
   "version": "0.4.10",
   "license": "AGPL-3.0-or-later",
-  "description": "brain.md web client — React 18 + CodeMirror 6 + unified renderer + Radix UI + Tailwind tokens.",
+  "description": "folio web client — React 18 + CodeMirror 6 + unified renderer + Radix UI + Tailwind tokens.",
   "author": {
     "name": "Michał Lipiński",
     "url": "https://lipinski.work/"
   },
-  "homepage": "https://github.com/mi4uu/brain.md#readme",
+  "contributors": [
+    {
+      "name": "Kasper Moskwiak"
+    }
+  ],
+  "homepage": "https://github.com/kmoskwiak/folio#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mi4uu/brain.md.git",
+    "url": "git+https://github.com/kmoskwiak/folio.git",
     "directory": "web"
   },
   "bugs": {
-    "url": "https://github.com/mi4uu/brain.md/issues"
+    "url": "https://github.com/kmoskwiak/folio/issues"
   },
   "type": "module",
   "scripts": {

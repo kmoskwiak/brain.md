@@ -8,7 +8,7 @@ status: live
 
 # Frontmatter & Aliases
 
-Every note can carry a YAML frontmatter block. brain.md parses it,
+Every note can carry a YAML frontmatter block. folio parses it,
 shows it in the Properties panel, and uses two fields specially:
 
 ## `aliases`
@@ -41,5 +41,5 @@ tag.
 
 ## What you can put in frontmatter
 
-Anything valid YAML. brain.md preserves unknown fields untouched. The
+Anything valid YAML. folio preserves unknown fields untouched. The
 Properties panel surfaces title, aliases, tags, status, dates.

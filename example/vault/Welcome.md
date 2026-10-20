@@ -1,10 +1,10 @@
 ---
-title: Welcome to brain.md
+title: Welcome to folio
 aliases: [Home, Start Here]
 tags: [onboarding, demo]
 ---
 
-# Welcome to **brain.md**
+# Welcome to **folio**
 
 Your local-first second brain — markdown vault, real-time search,
 semantic RAG, and a built-in MCP server so any AI agent can read,
@@ -24,7 +24,7 @@ search and write into your notes safely.
 > Then check out the **AI for Agents** folder:
 > [[RAG (Semantic Search)]], [[MCP Server]], [[Folder Permissions]].
 
-## What makes brain.md different
+## What makes folio different
 
 - **Local & private** — runs entirely on your machine. Vault is just
   a folder of `.md` files. No lock-in. ==Open in VSCode any time==.
@@ -44,7 +44,7 @@ search and write into your notes safely.
 1. Press **⌘P** to open search.
 2. Type "mcp" to see semantic hits.
 3. Right-click any folder in the sidebar → **MCP permissions…**
-4. Open [[brain.md launch]] in the Projects folder for a real-world note
+4. Open [[folio launch]] in the Projects folder for a real-world note
    with tasks, links and a roadmap.
 
 %% This is a comment — it won't render in preview but stays in the source. %%

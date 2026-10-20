@@ -612,7 +612,7 @@ export function createMcp(deps: McpDeps) {
         ? `${VIEW_ONLY_NOTICE}${loaded ? `\n${loaded}` : ""}`
         : loaded;
       const server = new McpServer(
-        { name: "brain.md", version: VERSION },
+        { name: "folio", version: VERSION },
         instructions ? { instructions } : undefined,
       );
       registerHandlers(server, deps);

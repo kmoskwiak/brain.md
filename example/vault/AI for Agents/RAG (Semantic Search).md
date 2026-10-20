@@ -6,7 +6,7 @@ tags: [ai, rag, demo]
 
 # RAG — local-first semantic search
 
-When a note is saved, brain.md chunks it (≤512 tokens, ~64-token
+When a note is saved, folio chunks it (≤512 tokens, ~64-token
 overlap, paragraph-aligned), embeds each chunk and upserts the
 vectors into a per-vault **LanceDB** table at
 `<VAULT>/.brain/lance/`.
@@ -26,7 +26,7 @@ Settings → **AI / RAG** → Provider → `openai-compat` lets you point at:
 - Anything else that mirrors `POST /v1/embeddings` with the
   `{input, model}` shape.
 
-Hit **Test connection** before saving; brain.md probes the endpoint
+Hit **Test connection** before saving; folio probes the endpoint
 and reports back the actual embedding dimension.
 
 ## Endpoints

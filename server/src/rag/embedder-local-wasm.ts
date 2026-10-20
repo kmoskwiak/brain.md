@@ -10,8 +10,8 @@
 // First call to ready():
 //   1. Extracts ort-wasm-simd-threaded.{wasm,mjs} from bunfs (when
 //      running compiled) or node_modules (when running from source) to
-//      <cache>/brain.md/wasm/. Sets ort.env.wasm.wasmPaths.
-//   2. Extracts vocab.txt to <cache>/brain.md/models/bge-small/.
+//      <cache>/folio/wasm/. Sets ort.env.wasm.wasmPaths.
+//   2. Extracts vocab.txt to <cache>/folio/models/bge-small/.
 //   3. Downloads model_quantized.onnx from HuggingFace if missing.
 //   4. Constructs the InferenceSession.
 //
@@ -73,7 +73,7 @@ interface OrtModule {
 
 function cacheRoot(): string {
   const xdg = process.env.XDG_CACHE_HOME;
-  return xdg ? join(xdg, "brain.md") : join(homedir(), ".cache", "brain.md");
+  return xdg ? join(xdg, "folio") : join(homedir(), ".cache", "folio");
 }
 
 const MODEL_URL =

@@ -24,13 +24,13 @@ export function AboutDialog({ open, onOpenChange }: Props) {
       <DialogContent className="max-w-md">
         <DialogHeader className="items-center text-center">
           <img
-            src="/brainmdlogo.png"
+            src="/folio.svg"
             alt=""
             width={56}
             height={56}
             className="mb-1"
           />
-          <DialogTitle className="text-lg">brain.md</DialogTitle>
+          <DialogTitle className="text-lg">folio</DialogTitle>
           <DialogDescription>
             A local-first second brain for you — and for your AI agents.
             <br />
@@ -41,23 +41,23 @@ export function AboutDialog({ open, onOpenChange }: Props) {
         </DialogHeader>
 
         <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-sm">
-          <span className="text-fg-3">Built by</span>
-          <ExtLink href="https://lipinski.work/">
-            Michał Lipiński · lipinski.work
+          <span className="text-fg-3">Based on</span>
+          <ExtLink href="https://github.com/mi4uu/brain.md" icon="gh">
+            brain.md by Michał Lipiński
           </ExtLink>
 
           <span className="text-fg-3">Repository</span>
-          <ExtLink href="https://github.com/mi4uu/brain.md" icon="gh">
-            github.com/mi4uu/brain.md
+          <ExtLink href="https://github.com/kmoskwiak/folio" icon="gh">
+            github.com/kmoskwiak/folio
           </ExtLink>
 
           <span className="text-fg-3">Docs</span>
-          <ExtLink href="https://github.com/mi4uu/brain.md/blob/main/docs/mcp.md">
+          <ExtLink href="https://github.com/kmoskwiak/folio/blob/main/docs/mcp.md">
             MCP reference
           </ExtLink>
 
           <span className="text-fg-3">Issues</span>
-          <ExtLink href="https://github.com/mi4uu/brain.md/issues/new">
+          <ExtLink href="https://github.com/kmoskwiak/folio/issues/new">
             Report a bug
           </ExtLink>
         </div>
@@ -69,7 +69,7 @@ export function AboutDialog({ open, onOpenChange }: Props) {
           className="mt-2 inline-flex items-center justify-center gap-2 rounded-2 border border-border bg-surface-alt px-3 py-2 text-sm font-medium text-fg-1 transition-colors duration-fast hover:bg-hover"
         >
           <HeartFilledIcon className="text-pink-500" />
-          Sponsor brain.md on GitHub
+          Sponsor the original brain.md author
         </a>
       </DialogContent>
     </Dialog>

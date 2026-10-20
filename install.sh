@@ -1,19 +1,20 @@
 #!/usr/bin/env sh
-# brain.md installer for macOS and Linux.
+# folio installer for macOS and Linux.
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/mi4uu/brain.md/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/kmoskwiak/folio/main/install.sh | bash
 #
 # Env knobs:
-#   BRAIN_INSTALL   target directory (default: $HOME/.local/bin)
-#   BRAIN_VERSION   release tag to install (default: latest)
+#   FOLIO_INSTALL   target directory (default: $HOME/.local/bin)
+#   FOLIO_VERSION   release tag to install (default: latest)
+#   (BRAIN_INSTALL / BRAIN_VERSION are still honoured as fallbacks.)
 
 set -eu
 
-REPO="mi4uu/brain.md"
-BIN_NAME="brainmd"
-INSTALL_DIR="${BRAIN_INSTALL:-$HOME/.local/bin}"
-VERSION="${BRAIN_VERSION:-latest}"
+REPO="kmoskwiak/folio"
+BIN_NAME="folio"
+INSTALL_DIR="${FOLIO_INSTALL:-${BRAIN_INSTALL:-$HOME/.local/bin}}"
+VERSION="${FOLIO_VERSION:-${BRAIN_VERSION:-latest}}"
 
 bold()  { printf "\033[1m%s\033[0m\n" "$1"; }
 green() { printf "\033[32m%s\033[0m\n" "$1"; }
@@ -33,7 +34,7 @@ case "$(uname -m)" in
   *) die "unsupported architecture: $(uname -m)" ;;
 esac
 
-ASSET="brain-md-${OS}-${ARCH}"
+ASSET="folio-${OS}-${ARCH}"
 
 if [ "$VERSION" = "latest" ]; then
   URL="https://github.com/${REPO}/releases/latest/download/${ASSET}"
@@ -84,8 +85,8 @@ case ":$PATH:" in
 esac
 
 bold "Get started:"
-printf "  brainmd --help                       # see all flags\n"
-printf "  brainmd                              # serve on :3000\n"
-printf "  brainmd --vault-dir ~/my-notes       # custom vault\n"
+printf "  folio --help                         # see all flags\n"
+printf "  folio                                # serve on :3000\n"
+printf "  folio --vault-dir ~/my-notes         # custom vault\n"
 printf "\n"
 printf "Then open: \033[34mhttp://localhost:3000\033[0m\n"

@@ -82,7 +82,7 @@ bun run dev:web      # vite on :5173
 ```json
 {
   "mcpServers": {
-    "brain.md": {
+    "folio": {
       "type": "streamable-http",
       "url": "http://localhost:3000/mcp"
     }

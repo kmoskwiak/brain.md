@@ -18,7 +18,7 @@ clickable internal link.
 
 ## Resolution hierarchy
 
-When you type `[[Wikilinks]]`, brain.md resolves it in this order:
+When you type `[[Wikilinks]]`, folio resolves it in this order:
 
 1. **Full path** — `[[Features/Wikilinks]]` always wins
 2. **Basename** — `[[Wikilinks]]` (case-insensitive)
@@ -29,7 +29,7 @@ editor inserts the full path on drag-drop.
 
 ## Drag-and-drop
 
-Drag any note from the sidebar into the editor — brain.md inserts a
+Drag any note from the sidebar into the editor — folio inserts a
 `[[basename]]` for unique names, or `[[Full/Path/Name]]` when ambiguous.
 
 ## `@` quick-link

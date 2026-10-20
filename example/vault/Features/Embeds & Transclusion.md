@@ -26,7 +26,7 @@ Place images in `<note-folder>/.media/` and reference them with
 
 ## Audio / Video / PDF
 
-Same syntax — brain.md sniffs MIME and renders an `<audio>`, `<video>`
+Same syntax — folio sniffs MIME and renders an `<audio>`, `<video>`
 or `<embed>` as appropriate.
 
 ## Recursion guard

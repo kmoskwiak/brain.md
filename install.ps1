@@ -1,18 +1,19 @@
-# brain.md installer for Windows.
+# folio installer for Windows.
 #
 # Usage:
-#   powershell -c "irm https://raw.githubusercontent.com/mi4uu/brain.md/main/install.ps1 | iex"
+#   powershell -c "irm https://raw.githubusercontent.com/kmoskwiak/folio/main/install.ps1 | iex"
 #
 # Env knobs:
-#   $env:BRAIN_INSTALL   target directory (default: $HOME\.brain.md\bin)
-#   $env:BRAIN_VERSION   release tag to install (default: latest)
+#   $env:FOLIO_INSTALL   target directory (default: $HOME\.folio\bin)
+#   $env:FOLIO_VERSION   release tag to install (default: latest)
+#   ($env:BRAIN_INSTALL / $env:BRAIN_VERSION are still honoured as fallbacks.)
 
 $ErrorActionPreference = "Stop"
 
-$Repo       = "mi4uu/brain.md"
-$BinName    = "brainmd.exe"
-$InstallDir = if ($env:BRAIN_INSTALL) { $env:BRAIN_INSTALL } else { Join-Path $HOME ".brain.md\bin" }
-$Version    = if ($env:BRAIN_VERSION) { $env:BRAIN_VERSION } else { "latest" }
+$Repo       = "kmoskwiak/folio"
+$BinName    = "folio.exe"
+$InstallDir = if ($env:FOLIO_INSTALL) { $env:FOLIO_INSTALL } elseif ($env:BRAIN_INSTALL) { $env:BRAIN_INSTALL } else { Join-Path $HOME ".folio\bin" }
+$Version    = if ($env:FOLIO_VERSION) { $env:FOLIO_VERSION } elseif ($env:BRAIN_VERSION) { $env:BRAIN_VERSION } else { "latest" }
 
 # ---------- detect arch ----------
 switch ($env:PROCESSOR_ARCHITECTURE) {
@@ -26,7 +27,7 @@ switch ($env:PROCESSOR_ARCHITECTURE) {
   default { throw "unsupported architecture: $env:PROCESSOR_ARCHITECTURE" }
 }
 
-$Asset = "brain-md-windows-$Arch.exe"
+$Asset = "folio-windows-$Arch.exe"
 $Url = if ($Version -eq "latest") {
   "https://github.com/$Repo/releases/latest/download/$Asset"
 } else {
@@ -75,8 +76,8 @@ if (-not $onPath) {
 }
 
 Write-Host "Get started:" -ForegroundColor White
-Write-Host "  brainmd --help                       # see all flags"
-Write-Host "  brainmd                              # serve on :3000"
-Write-Host "  brainmd --vault-dir `"$HOME\my-notes`"  # custom vault"
+Write-Host "  folio --help                         # see all flags"
+Write-Host "  folio                                # serve on :3000"
+Write-Host "  folio --vault-dir `"$HOME\my-notes`"    # custom vault"
 Write-Host ""
 Write-Host "Then open: http://localhost:3000" -ForegroundColor Blue

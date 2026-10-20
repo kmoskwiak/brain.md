@@ -18,19 +18,19 @@ jobs:
       matrix:
         include:
           - target: bun-linux-x64
-            artifact: brain-md-linux-x64
+            artifact: folio-linux-x64
             ext: ""
           - target: bun-linux-arm64
-            artifact: brain-md-linux-arm64
+            artifact: folio-linux-arm64
             ext: ""
           - target: bun-darwin-x64
-            artifact: brain-md-darwin-x64
+            artifact: folio-darwin-x64
             ext: ""
           - target: bun-darwin-arm64
-            artifact: brain-md-darwin-arm64
+            artifact: folio-darwin-arm64
             ext: ""
           - target: bun-windows-x64
-            artifact: brain-md-windows-x64
+            artifact: folio-windows-x64
             ext: ".exe"
     steps:
       - uses: actions/checkout@v4

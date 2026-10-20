@@ -22,13 +22,13 @@ import type { Vault } from "../vault/vault";
 
 export const INSTRUCTIONS_REL = ".brain/mcp-prompt.md";
 
-export const DEFAULT_MCP_INSTRUCTIONS = `# brain.md — operating instructions for agents
+export const DEFAULT_MCP_INSTRUCTIONS = `# folio — operating instructions for agents
 
-You are connected to a **brain.md** vault: a local-first Markdown knowledge
+You are connected to a **folio** vault: a local-first Markdown knowledge
 base that is the owner's second brain. These rules apply to every task you
 do through this server. Follow them unless the user explicitly overrides them.
 
-## 1. brain.md is the single source of truth
+## 1. folio is the single source of truth
 
 - Treat the vault as the authoritative, **always-current** record of what the
   owner knows, decides, and is working on. When the vault and your own memory
@@ -82,7 +82,7 @@ If you genuinely can't tell, ask the owner rather than guessing the folder.
 
 // --view-only: prepended to whatever instructions are active so it overrides
 // the "write it back" guidance above. The write tools aren't registered.
-export const VIEW_ONLY_NOTICE = `> **VIEW-ONLY MODE.** This brain.md server was started with \`--view-only\`.
+export const VIEW_ONLY_NOTICE = `> **VIEW-ONLY MODE.** This folio server was started with \`--view-only\`.
 > No write tools are available (\`write_note\` / \`append_note\` are absent).
 > Do not attempt to create or modify notes; any "write it back" guidance
 > below does not apply. If the owner asks for a change, tell them the vault is

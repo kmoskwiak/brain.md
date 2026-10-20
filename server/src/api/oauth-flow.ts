@@ -68,7 +68,7 @@ function consentPage(params: {
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<title>Authorize · brain.md</title>
+<title>Authorize · folio</title>
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <style>
   :root { color-scheme: dark; }
@@ -97,7 +97,7 @@ function consentPage(params: {
 <body>
   <div class="card">
     <h1>Authorize access to your vault</h1>
-    <div class="sub">An MCP client wants to connect to brain.md.</div>
+    <div class="sub">An MCP client wants to connect to folio.</div>
     ${error ? `<div class="error">${safe(error)}</div>` : ""}
     <div class="meta">
       <dl>
