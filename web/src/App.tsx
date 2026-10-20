@@ -171,6 +171,8 @@ export function App() {
   }, []);
 
   const onEditorCursorLine = useCallback((line: number) => {
+    // hidden editor (preview-only) must not move the preview
+    if (previewOnlyRef.current) return;
     previewHandleRef.current?.setActiveLine(line);
     setActiveLine(line);
     if (Date.now() < syncLockRef.current) return;
@@ -182,6 +184,7 @@ export function App() {
   }, [cursorAnchorY]);
 
   const onEditorScrollLine = useCallback((line: number) => {
+    if (previewOnlyRef.current) return;
     if (Date.now() < syncLockRef.current) return;
     syncLockRef.current = Date.now() + 180;
     previewHandleRef.current?.scrollToLine(line, {
@@ -205,6 +208,20 @@ export function App() {
     const block = v.lineBlockAt(lineObj.from);
     v.scrollDOM.scrollTo({ top: block.top, behavior: "auto" });
   }, []);
+
+  // Switching split <-> preview-only changes the preview width, so the text
+  // reflows. Keep the line the user was reading at the top of the preview,
+  // and bring the editor to it when it comes back.
+  const togglePreviewOnly = useCallback(() => {
+    const line = previewHandleRef.current?.topLine() ?? null;
+    const showEditor = previewOnlyPref;
+    setPreviewOnlyPref(!previewOnlyPref);
+    if (line === null) return;
+    requestAnimationFrame(() => {
+      if (showEditor) onPreviewScrollLine(line);
+      previewHandleRef.current?.scrollToLine(line, { behavior: "auto" });
+    });
+  }, [previewOnlyPref, setPreviewOnlyPref, onPreviewScrollLine]);
 
   const onOutlineJump = useCallback((line: number) => {
     const v = editorViewRef.current;
@@ -1071,7 +1088,7 @@ export function App() {
                 <span className="pane-head-actions">
                   <IconBtn
                     label={previewOnly ? "Show editor" : "Preview only"}
-                    onClick={() => setPreviewOnlyPref(!previewOnlyPref)}
+                    onClick={togglePreviewOnly}
                   >
                     {previewOnly ? <ColumnsIcon /> : <EyeIcon />}
                   </IconBtn>

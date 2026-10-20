@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 
 // Edit-mode "Preview only" toggle (editor column hidden). Persisted to
 // localStorage (device-local, NOT vault). Value = "1"|"0".
@@ -16,14 +16,14 @@ function readStored(): boolean {
 export function usePreviewOnly(): [boolean, (v: boolean) => void] {
   const [previewOnly, setPreviewOnlyState] = useState<boolean>(() => readStored());
 
-  const setPreviewOnly = (v: boolean) => {
+  const setPreviewOnly = useCallback((v: boolean) => {
     try {
       localStorage.setItem(KEY, v ? "1" : "0");
     } catch {
       // ignore
     }
     setPreviewOnlyState(v);
-  };
+  }, []);
 
   return [previewOnly, setPreviewOnly];
 }
