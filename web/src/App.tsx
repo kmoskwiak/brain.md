@@ -22,6 +22,7 @@ import { IconPicker } from "./components/IconPicker";
 import {
   CalendarIcon,
   CheckSquareIcon,
+  ColumnsIcon,
   EyeIcon,
   FilePlusIcon,
   FlagIcon,
@@ -60,6 +61,7 @@ import { toast as showToast } from "./components/ui/use-toast";
 import { useAuth } from "./hooks/useAuth";
 import { useDebouncedSave } from "./hooks/useDebouncedSave";
 import { useMediaQuery } from "./hooks/useMediaQuery";
+import { usePreviewOnly } from "./hooks/usePreviewOnly";
 import {
   useSidebarSections,
   type SidebarSectionId,
@@ -120,6 +122,13 @@ export function App() {
   // --view-only server: preview-only UI. The server enforces it regardless;
   // this just hides controls that would fail. null = not known yet.
   const [viewOnly, setViewOnly] = useState<boolean | null>(null);
+  // Edit mode only: hide the editor column and show the preview alone.
+  // Desktop only (mobile has its own Edit/Preview tabs) and only with a note
+  // open, so the empty state in the editor pane never disappears.
+  const [previewOnlyPref, setPreviewOnlyPref] = usePreviewOnly();
+  const previewOnly = !viewOnly && !isMobile && previewOnlyPref && path !== null;
+  const previewOnlyRef = useRef(previewOnly);
+  previewOnlyRef.current = previewOnly;
   const sidebar = useSidebarSections(
     ["bookmarks", "vault", "tags", "outline", "backlinks", "related"],
     {
@@ -199,8 +208,9 @@ export function App() {
 
   const onOutlineJump = useCallback((line: number) => {
     const v = editorViewRef.current;
-    if (!v) {
-      // view-only: no editor mounted, scroll the preview alone
+    if (!v || previewOnlyRef.current) {
+      // view-only: no editor mounted; preview-only: editor hidden.
+      // Scroll the preview alone.
       previewHandleRef.current?.setActiveLine(line);
       previewHandleRef.current?.scrollToLine(line, { behavior: "smooth" });
       return;
@@ -801,8 +811,8 @@ export function App() {
         setContent("");
         window.location.hash = `#/tag/${encodeURIComponent(tag)}`;
       }}
-      onScrollLine={onPreviewScrollLine}
-      onSelectLine={onPreviewSelectLine}
+      onScrollLine={previewOnly ? undefined : onPreviewScrollLine}
+      onSelectLine={previewOnly ? undefined : onPreviewSelectLine}
     />
   );
 
@@ -1041,7 +1051,11 @@ export function App() {
           "main",
           viewOnly
             ? "view-only"
-            : [isMobile && mobileView === "preview" && "show-preview", path && "has-toolbar"],
+            : [
+                isMobile && mobileView === "preview" && "show-preview",
+                path && "has-toolbar",
+                previewOnly && "preview-only",
+              ],
         )}
       >
         {viewOnly ? null : (
@@ -1053,6 +1067,16 @@ export function App() {
             <div className="pane-head preview-head">
               <EyeIcon />
               <span>Preview</span>
+              {path && !isMobile ? (
+                <span className="pane-head-actions">
+                  <IconBtn
+                    label={previewOnly ? "Show editor" : "Preview only"}
+                    onClick={() => setPreviewOnlyPref(!previewOnlyPref)}
+                  >
+                    {previewOnly ? <ColumnsIcon /> : <EyeIcon />}
+                  </IconBtn>
+                </span>
+              ) : null}
             </div>
             {path ? (
               <div className="toolbar-row">
@@ -1093,7 +1117,7 @@ export function App() {
               empty state that normally live in the editor pane. */}
           {viewOnly ? tagFilterView ?? (path ? preview : emptyState) : preview}
         </section>
-        {path && !isMobile && !viewOnly ? (
+        {path && !isMobile && !viewOnly && !previewOnly ? (
           <SyncConnector
             mainRef={mainRef}
             editorViewRef={editorViewRef}

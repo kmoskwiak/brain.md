@@ -287,6 +287,22 @@
 .main .editor-pane { grid-area: editor; border-right: 1px solid var(--border); }
 .main .preview-pane { grid-area: preview; }
 
+/* Edit mode "Preview only" toggle: editor column hidden but kept mounted
+   (undo history, cursor). Only set on desktop, see App.tsx. */
+.main.preview-only,
+.main.preview-only.has-toolbar {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas:
+    "phead"
+    "preview";
+}
+.main.preview-only .pane-head.editor-head,
+.main.preview-only .toolbar-row,
+.main.preview-only .pane.editor-pane {
+  display: none;
+}
+
 .pane {
   background: var(--bg-app);
   display: flex;
@@ -318,6 +334,16 @@
   letter-spacing: 0.06em;
   border-bottom: 1px solid var(--border);
   background: var(--bg-surface);
+}
+/* Toggle button in the 36px pane header: compact, not a full tap target. */
+.pane-head-actions {
+  margin-left: auto;
+  display: flex;
+}
+.pane-head .btn.icon {
+  min-height: 0;
+  min-width: 0;
+  padding: 4px;
 }
 
 .drawer-backdrop {
