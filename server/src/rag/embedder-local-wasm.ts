@@ -10,14 +10,14 @@
 // First call to ready():
 //   1. Extracts ort-wasm-simd-threaded.{wasm,mjs} from bunfs (when
 //      running compiled) or node_modules (when running from source) to
-//      <cache>/brain.md/wasm/. Sets ort.env.wasm.wasmPaths.
-//   2. Extracts vocab.txt to <cache>/brain.md/models/bge-small/.
+//      <cache>/folio/wasm/. Sets ort.env.wasm.wasmPaths.
+//   2. Extracts vocab.txt to <cache>/folio/models/bge-small/.
 //   3. Downloads model_quantized.onnx from HuggingFace if missing.
 //   4. Constructs the InferenceSession.
 //
 // Subsequent calls reuse the cached files + session.
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import type { Embedder } from "./provider";
@@ -73,7 +73,7 @@ interface OrtModule {
 
 function cacheRoot(): string {
   const xdg = process.env.XDG_CACHE_HOME;
-  return xdg ? join(xdg, "brain.md") : join(homedir(), ".cache", "brain.md");
+  return xdg ? join(xdg, "folio") : join(homedir(), ".cache", "folio");
 }
 
 const MODEL_URL =
@@ -142,7 +142,11 @@ export class LocalEmbedderWasm implements Embedder {
         );
       }
       const buf = new Uint8Array(await res.arrayBuffer());
-      writeFileSync(modelReal, buf);
+      // Write-then-rename so an interrupted write never leaves a partial
+      // model at the final path (existsSync above would trust it forever).
+      const modelTmp = `${modelReal}.tmp`;
+      writeFileSync(modelTmp, buf);
+      renameSync(modelTmp, modelReal);
       console.warn(`[rag] embedder model cached (${buf.length} bytes)`);
     }
 

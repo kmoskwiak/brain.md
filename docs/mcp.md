@@ -1,6 +1,6 @@
 # MCP server
 
-`brain.md` ships a Model Context Protocol server mounted on the same
+`folio` ships a Model Context Protocol server mounted on the same
 Elysia app under `/mcp/*`. Transport: **Streamable HTTP + SSE**
 (MCP 2024-11-05 spec).
 
@@ -47,7 +47,7 @@ HTTP — wires up directly:
 ```jsonc
 {
   "mcpServers": {
-    "brain.md": {
+    "folio": {
       "type": "streamable-http",
       "url": "http://localhost:3000/mcp",
       "headers": {
@@ -60,7 +60,7 @@ HTTP — wires up directly:
 ```
 
 Restart the client. The 17 tools + 2 resources appear under the
-"brain.md" server.
+"folio" server.
 
 ## Claude Desktop — stdio bridge
 
@@ -68,7 +68,7 @@ The Claude Desktop app (macOS / Windows) only speaks **stdio** at the
 MCP transport layer — streamable HTTP and SSE are not supported. Bridge
 through [`mcp-remote`](https://github.com/geelen/mcp-remote), which
 runs as a stdio child of Claude Desktop and forwards every JSON-RPC
-call over HTTP to brain.md.
+call over HTTP to folio.
 
 Open `~/Library/Application Support/Claude/claude_desktop_config.json`
 (macOS) — equivalent path on Windows / Linux — and add:
@@ -76,7 +76,7 @@ Open `~/Library/Application Support/Claude/claude_desktop_config.json`
 ```jsonc
 {
   "mcpServers": {
-    "brain.md": {
+    "folio": {
       "command": "npx",
       "args": [
         "mcp-remote",
@@ -90,7 +90,7 @@ Open `~/Library/Application Support/Claude/claude_desktop_config.json`
 ```
 
 Restart Claude Desktop. The 17 tools + 2 resources appear under the
-"brain.md" server.
+"folio" server.
 
 > **Caveat from `mcp-remote`**: Cursor and Claude Desktop on Windows
 > have a known bug where spaces inside `args` aren't escaped. Keep URL

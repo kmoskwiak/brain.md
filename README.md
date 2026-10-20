@@ -1,21 +1,21 @@
 <div align="center">
 
-<img src="web/public/brainmdlogo.png" alt="brain.md" width="120" />
+<img src="web/public/folio.svg" alt="folio" width="120" />
 
-# brain.md
+# folio
 
 **A local-first second brain for you — and for your AI agents.**
+
+<sub>folio is a fork of <a href="https://github.com/mi4uu/brain.md">brain.md</a> by Michał Lipiński.</sub>
 
 [![License: AGPL-3.0-or-later](https://img.shields.io/badge/license-AGPL--3.0--or--later-blue.svg)](LICENSE)
 [![Runtime: Bun](https://img.shields.io/badge/runtime-Bun-black.svg)](https://bun.com)
 [![MCP: streamable-http](https://img.shields.io/badge/MCP-streamable--http-7c3aed.svg)](docs/mcp.md)
 [![RAG: WASM ONNX](https://img.shields.io/badge/RAG-WASM%20ONNX-ec4899.svg)](#-semantic-search-rag)
-[![Glama MCP server](https://glama.ai/mcp/servers/mi4uu/brain.md/badges/score.svg)](https://glama.ai/mcp/servers/mi4uu/brain.md)
-[![Smithery](https://smithery.ai/badge/mi4uu/brain-md)](https://smithery.ai/server/mi4uu/brain-md)
 
 </div>
 
-![brain.md welcome](docs/img/hero-welcome.png)
+![folio welcome](docs/img/hero-welcome.png)
 
 <div align="center">
 
@@ -33,19 +33,19 @@
 | 🔒 &nbsp; **Per-folder agent permissions** | Right-click a folder → set `{read, write}` for the MCP surface. Keep `Journal/Private/` out of agent reach without locking down the vault. |
 | 🔑 &nbsp; **Optional password auth** | argon2id, bearer tokens, 24-hour TTL — gates both HTTP API and MCP. Off by default, on with one click. |
 | 📜 &nbsp; **Git autocommit** | Every save lands in git. Full history, diff, restore, manual checkpoints. The vault is a real git repo on disk. |
-| 🌍 &nbsp; **No vendor lock-in** | Your vault is a folder of `.md` files. Open it in VSCode, Obsidian, `cat`, anything. brain.md is just one more way to view and query it. |
+| 🌍 &nbsp; **No vendor lock-in** | Your vault is a folder of `.md` files. Open it in VSCode, Obsidian, `cat`, anything. folio is just one more way to view and query it. |
 | 💸 &nbsp; **Zero API keys required** | Out of the box it runs fully offline. Cloud embedders are an opt-in, not a default. |
 
 ---
 
-## Why brain.md
+## Why folio
 
-LLMs are only as smart as the context you give them. **brain.md** turns
+LLMs are only as smart as the context you give them. **folio** turns
 your notes into that context — without dragging them into someone
 else's cloud, without locking them inside a proprietary format, and
 without asking you to plumb a vector database yourself.
 
-You write markdown. brain.md gives you:
+You write markdown. folio gives you:
 
 - a polished **editor + live preview** with the full
   Obsidian-flavor dialect (wikilinks, embeds, callouts, math, mermaid,
@@ -67,7 +67,7 @@ files you can open in any editor at any time.
 
 ### How it compares
 
-|                                         | Obsidian                | Logseq          | Notion             | **brain.md**           |
+|                                         | Obsidian                | Logseq          | Notion             | **folio**           |
 |-----------------------------------------|-------------------------|-----------------|--------------------|------------------------|
 | License                                 | Proprietary             | AGPL-3.0        | Proprietary        | **AGPL-3.0**           |
 | Local-first vault on disk               | ✓                       | ✓               | ✗ (cloud)          | **✓**                  |
@@ -78,7 +78,7 @@ files you can open in any editor at any time.
 | Single binary, no Electron              | ✗ (Electron)            | ✗ (Electron)    | n/a                | **✓ — `bun --compile`** |
 | Works fully offline (incl. embeddings)  | ✓ (no AI)               | ✓ (no AI)       | ✗                  | **✓ — bundled WASM ONNX** |
 
-brain.md is *not* trying to replace Obsidian's plugin ecosystem or
+folio is *not* trying to replace Obsidian's plugin ecosystem or
 Notion's databases. It's narrower on purpose: a markdown vault
 designed from day one as a memory layer for AI agents over the
 Model Context Protocol.
@@ -112,30 +112,30 @@ Model Context Protocol.
 
 One line. No clone, no Bun, no Node — the installer detects your OS +
 arch, downloads the matching prebuilt binary from the latest GitHub
-release, drops it in `~/.local/bin` (or `%USERPROFILE%\.brain.md\bin`
+release, drops it in `~/.local/bin` (or `%USERPROFILE%\.folio\bin`
 on Windows), and verifies it runs.
 
 ### macOS / Linux
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/mi4uu/brain.md/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/kmoskwiak/folio/main/install.sh | bash
 ```
 
 ### Windows (PowerShell)
 
 ```powershell
-powershell -c "irm https://raw.githubusercontent.com/mi4uu/brain.md/main/install.ps1 | iex"
+powershell -c "irm https://raw.githubusercontent.com/kmoskwiak/folio/main/install.ps1 | iex"
 ```
 
 Then:
 
 ```sh
-brainmd                  # serve on :3000, vault at $HOME/.local/share/brain.md/vault
+folio                  # serve on :3000, vault at $HOME/.local/share/folio/vault
 open http://localhost:3000
 ```
 
 Open <http://localhost:3000>. First run creates your vault at the
-XDG default (`$HOME/.local/share/brain.md/vault` on macOS / Linux,
+XDG default (`$HOME/.local/share/folio/vault` on macOS / Linux,
 the equivalent on Windows).
 
 To enable semantic search and the MCP `similar_notes` tool, open
@@ -144,10 +144,10 @@ To enable semantic search and the MCP `similar_notes` tool, open
 ~34 MB quantized model download, then fully offline — no Ollama, no
 Python, no native deps).
 
-> **Want a tour?** Point brain.md at the demo vault that ships with
+> **Want a tour?** Point folio at the demo vault that ships with
 > the repo:
 > ```sh
-> brainmd --vault-dir ./example/vault
+> folio --vault-dir ./example/vault
 > ```
 > Every screenshot below was taken against [`example/vault/`](example/).
 
@@ -159,16 +159,16 @@ Python, no native deps).
 
 ```sh
 # macOS / Linux
-curl -fsSL https://raw.githubusercontent.com/mi4uu/brain.md/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/kmoskwiak/folio/main/install.sh | bash
 
 # Windows
-powershell -c "irm https://raw.githubusercontent.com/mi4uu/brain.md/main/install.ps1 | iex"
+powershell -c "irm https://raw.githubusercontent.com/kmoskwiak/folio/main/install.ps1 | iex"
 ```
 
 The script picks the right asset for your OS and CPU, writes it to
-`~/.local/bin/brain` (or `%USERPROFILE%\.brain.md\bin\brain.exe`),
+`~/.local/bin/folio` (or `%USERPROFILE%\.folio\bin\folio.exe`),
 chmod's it, and verifies it boots. Pin a version with
-`BRAIN_VERSION=v0.1.0`, change the install dir with `BRAIN_INSTALL=…`.
+`FOLIO_VERSION=v0.1.0`, change the install dir with `FOLIO_INSTALL=…`.
 
 ### Option B — download the binary manually
 
@@ -177,59 +177,59 @@ the web UI embedded inside it. No Bun runtime, no Node.js, no
 `git clone`, no `bun install` — just download, mark executable, run.
 
 Grab the file for your machine from the latest release:
-👉 **[github.com/mi4uu/brain.md/releases/latest](https://github.com/mi4uu/brain.md/releases/latest)**
+👉 **[github.com/kmoskwiak/folio/releases/latest](https://github.com/kmoskwiak/folio/releases/latest)**
 
 | Platform                          | Architecture | Asset                                                                                                          |
 |-----------------------------------|--------------|----------------------------------------------------------------------------------------------------------------|
-| 🍎 &nbsp; macOS — Apple Silicon  | `arm64`      | [`brain-md-darwin-arm64`](https://github.com/mi4uu/brain.md/releases/latest/download/brain-md-darwin-arm64)    |
-| 🍎 &nbsp; macOS — Intel          | `x64`        | [`brain-md-darwin-x64`](https://github.com/mi4uu/brain.md/releases/latest/download/brain-md-darwin-x64)        |
-| 🐧 &nbsp; Linux                   | `x64`        | [`brain-md-linux-x64`](https://github.com/mi4uu/brain.md/releases/latest/download/brain-md-linux-x64)          |
-| 🐧 &nbsp; Linux                   | `arm64`      | [`brain-md-linux-arm64`](https://github.com/mi4uu/brain.md/releases/latest/download/brain-md-linux-arm64)      |
-| 🪟 &nbsp; Windows                  | `x64`        | [`brain-md-windows-x64.exe`](https://github.com/mi4uu/brain.md/releases/latest/download/brain-md-windows-x64.exe) |
+| 🍎 &nbsp; macOS — Apple Silicon  | `arm64`      | [`folio-darwin-arm64`](https://github.com/kmoskwiak/folio/releases/latest/download/folio-darwin-arm64)    |
+| 🍎 &nbsp; macOS — Intel          | `x64`        | [`folio-darwin-x64`](https://github.com/kmoskwiak/folio/releases/latest/download/folio-darwin-x64)        |
+| 🐧 &nbsp; Linux                   | `x64`        | [`folio-linux-x64`](https://github.com/kmoskwiak/folio/releases/latest/download/folio-linux-x64)          |
+| 🐧 &nbsp; Linux                   | `arm64`      | [`folio-linux-arm64`](https://github.com/kmoskwiak/folio/releases/latest/download/folio-linux-arm64)      |
+| 🪟 &nbsp; Windows                  | `x64`        | [`folio-windows-x64.exe`](https://github.com/kmoskwiak/folio/releases/latest/download/folio-windows-x64.exe) |
 
 #### One-liner — macOS / Linux
 
 ```sh
 # macOS Apple Silicon — swap the URL suffix for your platform from the table above
-curl -L -o brainmd \
-  https://github.com/mi4uu/brain.md/releases/latest/download/brain-md-darwin-arm64
-chmod +x brainmd
-./brainmd                                # → serves on http://localhost:3000
+curl -L -o folio \
+  https://github.com/kmoskwiak/folio/releases/latest/download/folio-darwin-arm64
+chmod +x folio
+./folio                                # → serves on http://localhost:3000
 ```
 
 ```sh
-# Optional: drop it on your $PATH so you can run `brainmd` anywhere
-sudo mv brainmd /usr/local/bin/brainmd
-brainmd --help                           # see all flags
-brainmd --port 4000                      # custom port
-brainmd --vault-dir ~/notes/my-vault     # custom vault location
+# Optional: drop it on your $PATH so you can run `folio` anywhere
+sudo mv folio /usr/local/bin/folio
+folio --help                           # see all flags
+folio --port 4000                      # custom port
+folio --vault-dir ~/notes/my-vault     # custom vault location
 ```
 
 #### One-liner — Windows (PowerShell)
 
 ```powershell
-iwr https://github.com/mi4uu/brain.md/releases/latest/download/brain-md-windows-x64.exe `
-    -OutFile brainmd.exe
-.\brainmd.exe                            # → serves on http://localhost:3000
-.\brainmd.exe --help                     # all flags
+iwr https://github.com/kmoskwiak/folio/releases/latest/download/folio-windows-x64.exe `
+    -OutFile folio.exe
+.\folio.exe                            # → serves on http://localhost:3000
+.\folio.exe --help                     # all flags
 ```
 
-> **First run:** brain.md creates an empty vault at the XDG default
-> (`$HOME/.local/share/brain.md/vault` on macOS/Linux, the equivalent
+> **First run:** folio creates an empty vault at the XDG default
+> (`$HOME/.local/share/folio/vault` on macOS/Linux, the equivalent
 > on Windows) and serves the editor at <http://localhost:3000>.
 > Want to try the demo vault first? Download
 > [`example/vault/`](example/) and pass it with
-> `brain --vault-dir ./vault`.
+> `folio --vault-dir ./vault`.
 
 > Untagged commits also produce binaries — they live as build
-> artifacts on the [Actions page](https://github.com/mi4uu/brain.md/actions)
+> artifacts on the [Actions page](https://github.com/kmoskwiak/folio/actions)
 > with 30-day retention.
 
 ### Option C — from source
 
 ```sh
-git clone https://github.com/mi4uu/brain.md.git
-cd brain.md
+git clone https://github.com/kmoskwiak/folio.git
+cd folio
 bun install
 bun run start            # runs the production server on :3000
 ```
@@ -244,11 +244,11 @@ bun run dev:web          # vite on :5173 (with /api proxy)
 If you run `bun run start` from a fresh source checkout (no compiled
 binary, no `web/dist`), the server downloads the matching web bundle
 from the GitHub release into
-`$XDG_CACHE_HOME/brain.md/web/<version>/` on first request and serves
+`$XDG_CACHE_HOME/folio/web/<version>/` on first request and serves
 from there. To always work offline, run `bun --cwd web run build`
 once.
 
-> Requires [Bun ≥ 1.3](https://bun.com). brain.md uses `Bun.password`
+> Requires [Bun ≥ 1.3](https://bun.com). folio uses `Bun.password`
 > (built-in argon2id) so you don't need a native crypto build.
 
 ---
@@ -269,7 +269,7 @@ Backlinks · Related**. Each section is collapsible and remembers its
 state per device (`localStorage`). The **Tags** panel splits into
 *In this note* and *Other tags* the moment you open a note. The
 **Related** panel powers itself from the RAG index — same engine the
-agents use — and after every save brain.md quietly suggests up to three
+agents use — and after every save folio quietly suggests up to three
 tags borrowed from your closest semantic neighbours.
 
 ### Markdown that actually does things
@@ -321,7 +321,7 @@ the terminal too.
 
 ### 📱 Mobile
 
-brain.md is not a desktop-only tool. The same vault, the same
+folio is not a desktop-only tool. The same vault, the same
 self-hosted instance, the same editor — usable from your phone over
 LAN, Tailscale, or a **Cloudflare Tunnel** (Zero Trust, no public
 port, no DDNS). The server itself is tiny — a single Bun binary
@@ -335,9 +335,9 @@ bottom tab, the topbar scrolls horizontally with a sticky brand +
 hamburger, the sidebar slides in as a drawer.
 
 <p align="center">
-  <img src="docs/img/mobile1.jpeg" alt="brain.md mobile — preview" width="30%" />
-  <img src="docs/img/mobile2.jpeg" alt="brain.md mobile — editor" width="30%" />
-  <img src="docs/img/mobile3.jpeg" alt="brain.md mobile — sidebar drawer" width="30%" />
+  <img src="docs/img/mobile1.jpeg" alt="folio mobile — preview" width="30%" />
+  <img src="docs/img/mobile2.jpeg" alt="folio mobile — editor" width="30%" />
+  <img src="docs/img/mobile3.jpeg" alt="folio mobile — sidebar drawer" width="30%" />
 </p>
 
 Real phone, not a Chrome DevTools emulator. Captures notes on the
@@ -347,11 +347,11 @@ move; the same RAG, tags, backlinks, and tasks you have on desktop.
 
 ## 🤖 AI for agents
 
-This is what makes brain.md more than another markdown editor.
+This is what makes folio more than another markdown editor.
 
 ### 🔍 Semantic search (RAG)
 
-When a note is saved, brain.md chunks it (≤ 512 tokens, ~64-token
+When a note is saved, folio chunks it (≤ 512 tokens, ~64-token
 overlap, paragraph-aligned, frontmatter excluded), embeds each chunk,
 and upserts the vectors into a per-vault embedded store at
 `<VAULT>/.brain/vectors.json` (pure JS, brute-force cosine — well
@@ -368,7 +368,7 @@ under 10ms for typical vaults).
 > **Out of the box, in the prebuilt binary.** The local embedder ships
 > as bundled WASM ONNX with a hand-rolled BERT tokenizer — no
 > `onnxruntime-node`, no `sharp`, no platform-specific `.node`
-> bindings. Toggle **Enable RAG** in Settings → AI / RAG, brain.md
+> bindings. Toggle **Enable RAG** in Settings → AI / RAG, folio
 > fetches the ~34 MB quantized model once and works fully offline
 > after that, on macOS / Linux / Windows alike. Want to keep your
 > existing Ollama or hosted endpoint? Switch to *OpenAI-compatible*
@@ -427,7 +427,7 @@ with score, line range and a snippet preview. Click jumps you there.
 
 #### Tag suggestions on save
 
-After every save, brain.md quietly looks at the closest neighbours'
+After every save, folio quietly looks at the closest neighbours'
 frontmatter `tags` and suggests up to three you haven't used yet.
 One click drops the tag into your frontmatter.
 
@@ -435,7 +435,7 @@ One click drops the tag into your frontmatter.
 
 ### 🛰️ MCP server
 
-brain.md mounts a **Model Context Protocol** server on the same Elysia
+folio mounts a **Model Context Protocol** server on the same Elysia
 app at `POST /mcp`. Transport is the **2024-11-05 streamable HTTP**
 variant in **stateless JSON-response mode** — one POST returns the
 full JSON-RPC response in a single round trip, no SSE stream, a fresh
@@ -443,7 +443,7 @@ full JSON-RPC response in a single round trip, no SSE stream, a fresh
 only mode that survives clients that open and close a transport per
 tool call (Claude Desktop and LM Studio both do this).
 
-![MCP Server page in brain.md](docs/img/mcp-server-page.png)
+![MCP Server page in folio](docs/img/mcp-server-page.png)
 
 Tools (16):
 
@@ -478,7 +478,7 @@ official `@modelcontextprotocol/inspector`, etc.:
 ```json
 {
   "mcpServers": {
-    "brain.md": {
+    "folio": {
       "type": "streamable-http",
       "url": "http://localhost:3000/mcp"
     }
@@ -494,12 +494,12 @@ The Claude Desktop app (macOS / Windows) only speaks **stdio** —
 streamable HTTP and SSE are not supported as of writing. Bridge it
 through [`mcp-remote`](https://github.com/geelen/mcp-remote), which
 runs as a stdio child of Claude Desktop and forwards every JSON-RPC
-call over HTTP to your brain.md server:
+call over HTTP to your folio server:
 
 ```json
 {
   "mcpServers": {
-    "brain.md": {
+    "folio": {
       "command": "npx",
       "args": [
         "mcp-remote",
@@ -552,9 +552,9 @@ field for it:
 ```json
 {
   "mcpServers": {
-    "brain.md": {
+    "folio": {
       "type": "streamable-http",
-      "url": "https://brainmd.example.com/mcp",
+      "url": "https://folio.example.com/mcp",
       "headers": {
         "Authorization": "Bearer YOUR_TOKEN_HERE"
       }
@@ -568,11 +568,11 @@ field for it:
 ```json
 {
   "mcpServers": {
-    "brain.md": {
+    "folio": {
       "command": "npx",
       "args": [
         "mcp-remote",
-        "https://brainmd.example.com/mcp",
+        "https://folio.example.com/mcp",
         "--header",
         "Authorization: Bearer YOUR_TOKEN_HERE"
       ]
@@ -581,12 +581,12 @@ field for it:
 }
 ```
 
-**How to get a token.** brain.md issues tokens through
+**How to get a token.** folio issues tokens through
 `POST /api/auth/login`. You can do it from anywhere — most useful
 is a quick `curl`:
 
 ```sh
-curl -X POST https://brainmd.example.com/api/auth/login \
+curl -X POST https://folio.example.com/api/auth/login \
   -H 'content-type: application/json' \
   -d '{"password":"YOUR_PASSWORD"}' | jq -r .token
 ```
@@ -610,14 +610,14 @@ spec (MCP authorization spec 2025-11-25 forbids `?token=` in the URL
 and Claude.ai's UI has no field for a static `Authorization` header).
 You need full OAuth 2.1 with PKCE and Dynamic Client Registration.
 
-brain.md ships all of it as of **v0.4.0**. Set a vault password in
+folio ships all of it as of **v0.4.0**. Set a vault password in
 Settings → Security (this is what gates the consent screen), then
 in the Claude.ai Custom Connector dialog:
 
 | Field | Value |
 |---|---|
-| Name | `brain.md` (or anything you like) |
-| Remote MCP server URL | `https://your-brainmd.example.com/mcp` |
+| Name | `folio` (or anything you like) |
+| Remote MCP server URL | `https://your-folio.example.com/mcp` |
 | OAuth Client ID | leave empty — DCR will mint one |
 | OAuth Client Secret | leave empty — we use PKCE-only public clients |
 
@@ -625,12 +625,12 @@ Claude.ai will:
 1. Hit `GET /.well-known/oauth-protected-resource` and discover the
    embedded authorization server.
 2. POST `/oauth/register` to obtain a `client_id` (no human input).
-3. Redirect you to `GET /oauth/authorize?...` where brain.md renders
+3. Redirect you to `GET /oauth/authorize?...` where folio renders
    the consent page. **Type your vault password and click Allow.**
 4. Redirect back with `?code=...`, exchange at `/oauth/token` with
    PKCE verifier, get an access token + refresh token.
 5. Use the access token for `/mcp` calls. Tokens are audience-bound
-   (RFC 8707) — a token issued for brain.md cannot be used elsewhere.
+   (RFC 8707) — a token issued for folio cannot be used elsewhere.
 
 Scopes advertised: `vault:read`, `vault:write`. Per-folder permissions
 (set in the web UI) still apply on top — scope grants the surface,
@@ -646,13 +646,13 @@ bearer or the `mcp-remote` stdio bridge — both documented above.
 ## ⌨️ CLI
 
 ```sh
-brainmd [options]            # or: bun run start
-brainmd --help               # -h
-brainmd --version
-brainmd --vault-dir <path>   # -v <path>
-brainmd --port <n>           # -p <n>
-brainmd --mcp-disabled       # skip mounting MCP at /mcp/*
-brainmd --view-only          # preview UI, no edits via API or MCP
+folio [options]            # or: bun run start
+folio --help               # -h
+folio --version
+folio --vault-dir <path>   # -v <path>
+folio --port <n>           # -p <n>
+folio --mcp-disabled       # skip mounting MCP at /mcp/*
+folio --view-only          # preview UI, no edits via API or MCP
 ```
 
 `--view-only` serves the vault for viewing only. The web UI shows the
@@ -662,7 +662,7 @@ logout still work), and MCP drops `write_note` / `append_note` whatever
 the folder permissions say. Git autocommit is off and `git init` is
 skipped.
 
-This restricts what can be changed *through brain.md*, not the
+This restricts what can be changed *through folio*, not the
 filesystem: the server still keeps its own state in `.brain/` (login
 sessions, the search cache, RAG vectors, API-key last-used times), so
 the vault must stay writable.
@@ -676,8 +676,8 @@ stderr error + exit 2.
 
 | Purpose  | Env var            | Default                                     |
 |----------|--------------------|---------------------------------------------|
-| Vault    | `XDG_DATA_HOME`    | `$HOME/.local/share/brain.md/vault`         |
-| Settings | `XDG_CONFIG_HOME`  | `$HOME/.config/brain.md/`                   |
+| Vault    | `XDG_DATA_HOME`    | `$HOME/.local/share/folio/vault`         |
+| Settings | `XDG_CONFIG_HOME`  | `$HOME/.config/folio/`                   |
 
 Same logic on macOS, Linux, Windows — no OS branching. The vault dir
 is `mkdir -p`-ed on first run.
@@ -774,9 +774,10 @@ Want to nudge one of these up the list? Open an issue or PR.
 
 ## 💖 Sponsor
 
-brain.md is a solo open-source effort. If it's useful to you and you
-can chip in, sponsorship pays for the time that goes into new features,
-docs and review.
+folio is built on [brain.md](https://github.com/mi4uu/brain.md), a solo
+open-source effort by Michał Lipiński. If folio is useful to you and you
+can chip in, consider sponsoring the original author — that work is what
+made this fork possible.
 
 <p align="center">
   <a href="https://github.com/sponsors/mi4uu">
@@ -787,8 +788,8 @@ docs and review.
   </a>
 </p>
 
-> The `Sponsor ❤` button at the top of this repo and the small heart
-> in the brain.md topbar (next to **About**) both lead here.
+> The **Sponsor the original brain.md author** link in folio's
+> **About** dialog leads here.
 
 ---
 
@@ -806,9 +807,9 @@ Contributions welcome.
 
 ## ⭐ Star history
 
-[![Star History Chart](https://api.star-history.com/svg?repos=mi4uu/brain.md&type=Date)](https://star-history.com/#mi4uu/brain.md&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=kmoskwiak/folio&type=Date)](https://star-history.com/#kmoskwiak/folio&Date)
 
-Found brain.md useful? A ⭐ helps other people running local-first
+Found folio useful? A ⭐ helps other people running local-first
 agent workflows discover it. No newsletter, no tracking, no
 follow-up email — just a signal that this exists.
 
@@ -819,10 +820,11 @@ follow-up email — just a signal that this exists.
 **GNU Affero General Public License v3.0 or later** — see
 [LICENSE](LICENSE).
 
-brain.md is, and will stay, free / libre / open-source. The AGPL was
-picked over weaker permissive licenses for two specific reasons:
+folio, like brain.md before it, is and will stay free / libre /
+open-source. The AGPL was picked upstream over weaker permissive licenses
+for two specific reasons:
 
-1. **It closes the SaaS loophole.** If you modify brain.md and run
+1. **It closes the SaaS loophole.** If you modify folio and run
    it as a network service for others — hosted, multi-tenant,
    rebranded, whatever — you must publish your modified source under
    the same AGPL. Strong copyleft for a server-side tool means the
@@ -833,32 +835,36 @@ picked over weaker permissive licenses for two specific reasons:
 
 You're free to:
 
-- run brain.md, personally or commercially, without limits;
+- run folio, personally or commercially, without limits;
 - fork, modify, redistribute, even rebrand — provided your fork stays
   under the AGPL and you publish the source you're running.
 
 You're **not** free to:
 
-- ship a closed-source product based on brain.md;
-- host a modified brain.md as a public service without publishing
+- ship a closed-source product based on folio;
+- host a modified folio as a public service without publishing
   your modifications under the AGPL.
 
 ### Trademarks
 
-The name **brain.md** and the brain.md logo are *not* covered by the
-AGPL. If you fork the project, you're welcome to do almost anything
-with the code — but please use your own name and your own mark for
-your fork so users aren't confused about which project they're
+folio is a fork of [brain.md](https://github.com/mi4uu/brain.md). The
+name **brain.md** and the brain.md logo belong to its author and are
+*not* covered by the AGPL, which is why this fork ships under its own
+name and mark.
+
+The same goes for folio: if you fork it, you're welcome to do almost
+anything with the code — but please use your own name and your own mark
+for your fork so users aren't confused about which project they're
 running.
 
 ---
 
 <div align="center">
 
-**brain.md** — your notes, your machine, your agents.
+**folio** — your notes, your machine, your agents.
 
-Built by **[Michał Lipiński](https://lipinski.work/)**
-&nbsp;·&nbsp; [github.com/mi4uu/brain.md](https://github.com/mi4uu/brain.md)
-&nbsp;·&nbsp; [report a bug](https://github.com/mi4uu/brain.md/issues/new)
+Based on [brain.md](https://github.com/mi4uu/brain.md) by **[Michał Lipiński](https://lipinski.work/)**
+&nbsp;·&nbsp; [github.com/kmoskwiak/folio](https://github.com/kmoskwiak/folio)
+&nbsp;·&nbsp; [report a bug](https://github.com/kmoskwiak/folio/issues/new)
 
 </div>

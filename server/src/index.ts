@@ -10,7 +10,7 @@ async function main() {
     action = parseArgs(process.argv.slice(2));
   } catch (e) {
     const msg = e instanceof CliError ? e.message : String(e);
-    process.stderr.write(`brainmd: ${msg}\n\nTry 'brainmd --help' for usage.\n`);
+    process.stderr.write(`folio: ${msg}\n\nTry 'folio --help' for usage.\n`);
     process.exit(2);
   }
 
@@ -19,7 +19,7 @@ async function main() {
     process.exit(0);
   }
   if (action.kind === "version") {
-    process.stdout.write(`brainmd ${VERSION}\n`);
+    process.stdout.write(`folio ${VERSION}\n`);
     process.exit(0);
   }
 
@@ -101,7 +101,7 @@ async function main() {
 
   app.listen(config.port);
   console.log(
-    `brain.md server :${config.port} → vault ${config.vaultDir}${viewOnly ? " (view-only)" : ""}`,
+    `folio server :${config.port} → vault ${config.vaultDir}${viewOnly ? " (view-only)" : ""}`,
   );
 }
 

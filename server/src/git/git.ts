@@ -77,14 +77,14 @@ export class GitRepo {
     if (!existsSync(gitDir)) {
       await run(this.root, ["init", "--quiet", "--initial-branch=main"]);
       await this.ensureGitignore();
-      await run(this.root, ["config", "user.email", "brain@local"]);
-      await run(this.root, ["config", "user.name", "brain.md"]);
+      await run(this.root, ["config", "user.email", "folio@local"]);
+      await run(this.root, ["config", "user.name", "folio"]);
       await run(this.root, ["config", "commit.gpgsign", "false"]);
       await this.commitAll("initial");
     } else {
       await this.ensureGitignore();
-      await run(this.root, ["config", "user.email", "brain@local"], { allowFail: true });
-      await run(this.root, ["config", "user.name", "brain.md"], { allowFail: true });
+      await run(this.root, ["config", "user.email", "folio@local"], { allowFail: true });
+      await run(this.root, ["config", "user.name", "folio"], { allowFail: true });
     }
   }
 

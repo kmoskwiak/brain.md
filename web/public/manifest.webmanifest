@@ -1,6 +1,6 @@
 {
-  "name": "brain.md",
-  "short_name": "brain.md",
+  "name": "folio",
+  "short_name": "folio",
   "description": "Web Obsidian-flavored markdown vault",
   "start_url": "/",
   "display": "standalone",
@@ -9,7 +9,7 @@
   "scope": "/",
   "icons": [
     {
-      "src": "/icon.svg",
+      "src": "/folio.svg",
       "type": "image/svg+xml",
       "sizes": "any",
       "purpose": "any maskable"

@@ -1,11 +1,11 @@
 ---
-title: brain.md launch
+title: folio launch
 status: in-progress
 tags: [project, launch, ai]
 aliases: [Launch, v3 Launch]
 ---
 
-# brain.md v3 launch
+# folio v3 launch
 
 The first release that bundles the second-brain editor with an
 **agent surface** (MCP) and **semantic search** (RAG).
@@ -13,7 +13,7 @@ The first release that bundles the second-brain editor with an
 ## Goals
 
 > [!tip] North star
-> Make brain.md the simplest way to give a personal AI agent a
+> Make folio the simplest way to give a personal AI agent a
 > long-lived, structured memory.
 
 - [x] Land RAG pipeline + LanceDB store
@@ -32,7 +32,7 @@ The first release that bundles the second-brain editor with an
 2. **15-30s** — open Tags accordion, click a tag, show filter
 3. **30-50s** — open Settings → AI/RAG, enable, set Ollama endpoint,
    click Reindex
-4. **50-70s** — show Claude Desktop with brain.md MCP loaded, ask
+4. **50-70s** — show Claude Desktop with folio MCP loaded, ask
    "summarise my Journal from last week"
 5. **70-90s** — show the answer; emphasize **local-first**,
    **no API key by default**, **per-folder permissions**
@@ -41,7 +41,7 @@ The first release that bundles the second-brain editor with an
 
 Short pitch:
 
-> brain.md is an open-source second brain that talks to AI agents
+> folio is an open-source second brain that talks to AI agents
 > over MCP. Your notes stay on disk as plain markdown; an embedded
 > LanceDB gives Claude (or any MCP client) semantic search; per-folder
 > permissions let you keep your private notes private.

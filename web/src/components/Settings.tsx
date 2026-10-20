@@ -199,7 +199,7 @@ function buildSearchQuery(err: string): string {
 
 function RagErrorBanner({ error }: { error: string }) {
   const q = buildSearchQuery(error);
-  const googleUrl = `https://www.google.com/search?q=${encodeURIComponent(`brain.md ${q}`)}`;
+  const googleUrl = `https://www.google.com/search?q=${encodeURIComponent(`folio ${q}`)}`;
   return (
     <div
       role="alert"

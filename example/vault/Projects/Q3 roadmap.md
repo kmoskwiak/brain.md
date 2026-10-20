@@ -21,11 +21,11 @@ status: draft
 - [ ] Encrypted vaults (age key per vault)
 - [ ] Docker image (multi-arch, < 200MB compressed)
 - [ ] macOS notarised `.app` wrapping the binary
-- [ ] Hosted demo at brain.md (read-only sandbox)
+- [ ] Hosted folio demo (read-only sandbox)
 
 ## Stretch
 
 - [ ] First-class web clipper extension
 - [ ] Plugin API surface (just enough for community add-ons)
 
-Related: [[brain.md launch]], [[Welcome]].
+Related: [[folio launch]], [[Welcome]].

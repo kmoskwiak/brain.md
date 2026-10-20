@@ -16,7 +16,7 @@ all.
 - [x] Add per-folder MCP permissions
 - [ ] Ship the v3 launch post
 - [ ] Record the 90-second demo video
-- [ ] Tweet about [[brain.md launch]]
+- [ ] Tweet about [[folio launch]]
 
 ## Nested tasks
 

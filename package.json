@@ -1,5 +1,5 @@
 {
-  "name": "brain.md",
+  "name": "folio",
   "private": true,
   "version": "0.4.10",
   "license": "AGPL-3.0-or-later",
@@ -8,13 +8,18 @@
     "name": "Michał Lipiński",
     "url": "https://lipinski.work/"
   },
-  "homepage": "https://github.com/mi4uu/brain.md#readme",
+  "contributors": [
+    {
+      "name": "Kasper Moskwiak"
+    }
+  ],
+  "homepage": "https://github.com/kmoskwiak/folio#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mi4uu/brain.md.git"
+    "url": "git+https://github.com/kmoskwiak/folio.git"
   },
   "bugs": {
-    "url": "https://github.com/mi4uu/brain.md/issues"
+    "url": "https://github.com/kmoskwiak/folio/issues"
   },
   "keywords": [
     "second-brain",
@@ -33,12 +38,12 @@
   "workspaces": ["server", "web"],
   "scripts": {
     "dev": "bun --filter '*' dev",
-    "dev:server": "bun --cwd server run dev",
-    "dev:web": "bun --cwd web run dev",
-    "build": "bun --cwd web run build",
-    "start": "bun --cwd server run start",
-    "test": "bun --cwd server test",
-    "typecheck": "bun --cwd server run typecheck && bun --cwd web run typecheck"
+    "dev:server": "bun --cwd=server run dev",
+    "dev:web": "bun --cwd=web run dev",
+    "build": "bun --cwd=web run build",
+    "start": "bun --cwd=server run start",
+    "test": "bun --cwd=server test",
+    "typecheck": "bun --cwd=server run typecheck && bun --cwd=web run typecheck"
   },
   "devDependencies": {
     "typescript": "^5.6.3"

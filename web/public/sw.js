@@ -1,5 +1,5 @@
-const CACHE = "brain-shell-v1";
-const SHELL = ["/", "/index.html", "/manifest.webmanifest", "/icon.svg"];
+const CACHE = "folio-shell-v1";
+const SHELL = ["/", "/index.html", "/manifest.webmanifest", "/folio.svg"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

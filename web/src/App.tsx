@@ -1,75 +1,74 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import clsx from "clsx";
 import { EditorView } from "@codemirror/view";
-import { api } from "./api/client";
-import type { Backlink, TreeData } from "./api/types";
-import { FileTree } from "./components/FileTree";
-import { Editor } from "./components/Editor";
-import { Preview, type PreviewHandle } from "./components/Preview";
-import { Backlinks } from "./components/Backlinks";
-import { Related } from "./components/Related";
+import {
+  InfoCircledIcon
+} from "@radix-ui/react-icons";
+import clsx from "clsx";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { RelatedHit } from "./api/client";
-import { CommandBar } from "./components/CommandBar";
-import { Outline } from "./components/Outline";
-import { Settings } from "./components/Settings";
-import { TasksView } from "./components/TasksView";
-import { TrashView } from "./components/TrashView";
-import { EditorToolbar } from "./components/EditorToolbar";
-import { HistoryPanel } from "./components/HistoryPanel";
-import { IconPicker } from "./components/IconPicker";
-import { SyncConnector } from "./components/SyncConnector";
+import { api } from "./api/client";
 import { gitApi, type GitStatus } from "./api/git";
 import { metaApi, type FolderMeta } from "./api/meta";
-import { isMediaName } from "./renderer/render";
+import { settingsApi, type AppSettings } from "./api/settings";
+import type { Backlink, TreeData } from "./api/types";
+import { AboutDialog } from "./components/AboutDialog";
+import { Backlinks } from "./components/Backlinks";
+import { CommandBar } from "./components/CommandBar";
+import { Editor } from "./components/Editor";
+import { EditorToolbar } from "./components/EditorToolbar";
+import { FileTree } from "./components/FileTree";
+import { FolderPermsDialog } from "./components/FolderPermsDialog";
+import { HistoryPanel } from "./components/HistoryPanel";
+import { IconPicker } from "./components/IconPicker";
 import {
+  CalendarIcon,
+  CheckSquareIcon,
+  EyeIcon,
+  FilePlusIcon,
+  FlagIcon,
+  FolderPlusIcon,
+  GitCommitIcon,
+  HistoryIcon,
   MenuIcon,
   MoonIcon,
+  PenIcon,
   PlusIcon,
   SearchIcon,
   SettingsIcon,
   StarIcon,
   SunIcon,
-  CalendarIcon,
-  EyeIcon,
-  PenIcon,
   TagIcon,
-  CheckSquareIcon,
   TrashIcon,
-  HistoryIcon,
-  GitCommitIcon,
-  FlagIcon,
-  FilePlusIcon,
-  FolderPlusIcon,
 } from "./components/Icons";
-import { useTheme } from "./hooks/useTheme";
-import { useMediaQuery } from "./hooks/useMediaQuery";
-import { settingsApi, type AppSettings } from "./api/settings";
-import { useDebouncedSave } from "./hooks/useDebouncedSave";
-import { TooltipProvider } from "./components/ui/tooltip";
-import { Toaster } from "./components/ui/toaster";
-import { Tabs, TabsList, TabsTrigger } from "./components/ui/tabs";
-import { Tooltip, TooltipContent, TooltipTrigger } from "./components/ui/tooltip";
-import { toast as showToast } from "./components/ui/use-toast";
+import { LoginDialog } from "./components/LoginDialog";
+import { Outline } from "./components/Outline";
+import { Preview, type PreviewHandle } from "./components/Preview";
+import { Related } from "./components/Related";
+import { Settings } from "./components/Settings";
+import { SyncConnector } from "./components/SyncConnector";
+import { TasksView } from "./components/TasksView";
+import { TrashView } from "./components/TrashView";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "./components/ui/accordion";
+import { Tabs, TabsList, TabsTrigger } from "./components/ui/tabs";
+import { Toaster } from "./components/ui/toaster";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./components/ui/tooltip";
+import { toast as showToast } from "./components/ui/use-toast";
+import { useAuth } from "./hooks/useAuth";
+import { useDebouncedSave } from "./hooks/useDebouncedSave";
+import { useMediaQuery } from "./hooks/useMediaQuery";
 import {
   useSidebarSections,
   type SidebarSectionId,
 } from "./hooks/useSidebarSections";
-import { validateBasename } from "./lib/validate";
+import { useTheme } from "./hooks/useTheme";
 import { extractTagsFromMd, insertFrontmatterTag } from "./lib/tags";
-import { useAuth } from "./hooks/useAuth";
-import { LoginDialog } from "./components/LoginDialog";
-import { FolderPermsDialog } from "./components/FolderPermsDialog";
-import { AboutDialog } from "./components/AboutDialog";
-import {
-  HeartFilledIcon,
-  InfoCircledIcon,
-} from "@radix-ui/react-icons";
+import { validateBasename } from "./lib/validate";
+import { isMediaName } from "./renderer/render";
+// Stylesheet order is the cascade order — keep it as is, don't sort.
 import "./styles/tw.css";
 import "./styles/tokens.css";
 import "./styles/global.css";
@@ -775,6 +774,38 @@ export function App() {
   // mounts (and takes edits) on a view-only server.
   if (viewOnly === null) return null;
 
+  const tagFilterView = tagFilter ? (
+    <TagFilterView tag={tagFilter} notes={tagFilteredNotes ?? []} onOpen={openNote} onClear={() => setTagFilter(null)} />
+  ) : null;
+  const emptyState = (
+    <div className="empty-state">
+      <h2>No note open</h2>
+      <p className="hint">Pick a note from the sidebar or press ⌘O to switch.</p>
+      {viewOnly ? null : (
+        <button className="btn primary" onClick={() => createNote("")}>
+          <PlusIcon /> New note
+        </button>
+      )}
+    </div>
+  );
+  const preview = (
+    <Preview
+      ref={previewHandleRef}
+      content={content}
+      notePath={path}
+      resolveByBasename={resolveWikilink}
+      onOpenNote={openNote}
+      onOpenTag={(tag) => {
+        setTagFilter(tag);
+        setPath(null);
+        setContent("");
+        window.location.hash = `#/tag/${encodeURIComponent(tag)}`;
+      }}
+      onScrollLine={onPreviewScrollLine}
+      onSelectLine={onPreviewSelectLine}
+    />
+  );
+
   return (
     <TooltipProvider>
     <LoginDialog
@@ -793,15 +824,15 @@ export function App() {
         </button>
         <a
           href="#/"
-          aria-label="brain.md home"
+          aria-label="folio home"
           className="brand"
           onClick={(e) => {
             e.preventDefault();
             setPath(null);
           }}
         >
-          <img src="/brainmdlogo.png" alt="" width={22} height={22} />
-          <span className="brand-name">brain.md</span>
+          <img src="/folio.svg" alt="" width={22} height={22} />
+          <span className="brand-name">folio</span>
         </a>
         <span className="title">{path ? path.replace(/\.md$/, "") : ""}</span>
         <span className="saved">
@@ -862,19 +893,9 @@ export function App() {
             <SettingsIcon />
           </IconBtn>
         )}
-        <IconBtn label="About brain.md" onClick={() => setShowAbout(true)}>
+        <IconBtn label="About folio" onClick={() => setShowAbout(true)}>
           <InfoCircledIcon />
         </IconBtn>
-        <a
-          href="https://github.com/sponsors/mi4uu"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="btn icon sponsor-btn"
-          aria-label="Sponsor brain.md on GitHub"
-          title="Sponsor brain.md on GitHub"
-        >
-          <HeartFilledIcon />
-        </a>
         {gitStatus?.enabled ? (
           <div className="topbar-center">
             <GitStatusChip status={gitStatus} />
@@ -1014,114 +1035,73 @@ export function App() {
 
       {drawerOpen && isMobile ? <div className="drawer-backdrop open" onClick={() => setDrawerOpen(false)} /> : null}
 
-      {viewOnly ? (
-        <main ref={mainRef} className="main view-only">
-          <section className="pane preview-pane">
-            {tagFilter ? (
-              <TagFilterView tag={tagFilter} notes={tagFilteredNotes ?? []} onOpen={openNote} onClear={() => setTagFilter(null)} />
-            ) : path ? (
-              <Preview
-                ref={previewHandleRef}
-                content={content}
-                notePath={path}
-                resolveByBasename={resolveWikilink}
-                onOpenNote={openNote}
-                onOpenTag={(tag) => {
-                  setTagFilter(tag);
-                  setPath(null);
-                  setContent("");
-                  window.location.hash = `#/tag/${encodeURIComponent(tag)}`;
-                }}
-                onScrollLine={onPreviewScrollLine}
-                onSelectLine={onPreviewSelectLine}
-              />
-            ) : (
-              <div className="empty-state">
-                <h2>No note open</h2>
-                <p className="hint">Pick a note from the sidebar or press ⌘O to switch.</p>
-              </div>
-            )}
-          </section>
-        </main>
-      ) : (
-        <main ref={mainRef} className={clsx("main", isMobile && mobileView === "preview" && "show-preview", path && "has-toolbar")}>
-          <div className="pane-head editor-head">
-            <PenIcon />
-            <span>Editor</span>
-          </div>
-          <div className="pane-head preview-head">
-            <EyeIcon />
-            <span>Preview</span>
-          </div>
-          {path ? (
-            <div className="toolbar-row">
-              <EditorToolbar
-                getView={() => editorViewRef.current}
-                onUploadClick={() => uploadInputRef.current?.click()}
-              />
+      <main
+        ref={mainRef}
+        className={clsx(
+          "main",
+          viewOnly
+            ? "view-only"
+            : [isMobile && mobileView === "preview" && "show-preview", path && "has-toolbar"],
+        )}
+      >
+        {viewOnly ? null : (
+          <>
+            <div className="pane-head editor-head">
+              <PenIcon />
+              <span>Editor</span>
             </div>
-          ) : null}
-          <section className="pane editor-pane">
-            {tagFilter ? (
-              <TagFilterView tag={tagFilter} notes={tagFilteredNotes ?? []} onOpen={openNote} onClear={() => setTagFilter(null)} />
-            ) : path ? (
-              <>
-                <Editor
-                  value={content}
-                  onChange={setContent}
-                  onBlur={() => void flush()}
-                  basenames={basenames}
-                  onUploadMedia={uploadMediaForCurrent}
-                  viewRefOut={editorViewRef}
-                  onCursorLine={onEditorCursorLine}
-                  onScrollLine={onEditorScrollLine}
+            <div className="pane-head preview-head">
+              <EyeIcon />
+              <span>Preview</span>
+            </div>
+            {path ? (
+              <div className="toolbar-row">
+                <EditorToolbar
+                  getView={() => editorViewRef.current}
+                  onUploadClick={() => uploadInputRef.current?.click()}
                 />
-                <input
-                  ref={uploadInputRef}
-                  type="file"
-                  accept="*/*"
-                  multiple
-                  hidden
-                  onChange={onFileInputChange}
-                />
-              </>
-            ) : (
-              <div className="empty-state">
-                <h2>No note open</h2>
-                <p className="hint">Pick a note from the sidebar or press ⌘O to switch.</p>
-                <button className="btn primary" onClick={() => createNote("")}>
-                  <PlusIcon /> New note
-                </button>
               </div>
-            )}
-          </section>
-          <section className="pane preview-pane">
-            <Preview
-              ref={previewHandleRef}
-              content={content}
-              notePath={path}
-              resolveByBasename={resolveWikilink}
-              onOpenNote={openNote}
-              onOpenTag={(tag) => {
-                setTagFilter(tag);
-                setPath(null);
-                setContent("");
-                window.location.hash = `#/tag/${encodeURIComponent(tag)}`;
-              }}
-              onScrollLine={onPreviewScrollLine}
-              onSelectLine={onPreviewSelectLine}
-            />
-          </section>
-          {path && !isMobile ? (
-            <SyncConnector
-              mainRef={mainRef}
-              editorViewRef={editorViewRef}
-              trigger={activeLine}
-              hidden={isMobile}
-            />
-          ) : null}
-        </main>
-      )}
+            ) : null}
+            <section className="pane editor-pane">
+              {tagFilterView ?? (path ? (
+                <>
+                  <Editor
+                    value={content}
+                    onChange={setContent}
+                    onBlur={() => void flush()}
+                    basenames={basenames}
+                    onUploadMedia={uploadMediaForCurrent}
+                    viewRefOut={editorViewRef}
+                    onCursorLine={onEditorCursorLine}
+                    onScrollLine={onEditorScrollLine}
+                  />
+                  <input
+                    ref={uploadInputRef}
+                    type="file"
+                    accept="*/*"
+                    multiple
+                    hidden
+                    onChange={onFileInputChange}
+                  />
+                </>
+              ) : emptyState)}
+            </section>
+          </>
+        )}
+        <section className="pane preview-pane">
+          {/* In view-only mode the preview pane also hosts the tag list and
+              empty state that normally live in the editor pane. */}
+          {viewOnly ? tagFilterView ?? (path ? preview : emptyState) : preview}
+        </section>
+        {path && !isMobile && !viewOnly ? (
+          <SyncConnector
+            mainRef={mainRef}
+            editorViewRef={editorViewRef}
+            trigger={activeLine}
+            hidden={isMobile}
+          />
+        ) : null}
+      </main>
 
       {isMobile && !viewOnly ? (
         <nav className="mobile-tabs" aria-label="Editor view">
