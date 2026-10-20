@@ -17,7 +17,7 @@
 //
 // Subsequent calls reuse the cached files + session.
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import type { Embedder } from "./provider";
@@ -142,7 +142,11 @@ export class LocalEmbedderWasm implements Embedder {
         );
       }
       const buf = new Uint8Array(await res.arrayBuffer());
-      writeFileSync(modelReal, buf);
+      // Write-then-rename so an interrupted write never leaves a partial
+      // model at the final path (existsSync above would trust it forever).
+      const modelTmp = `${modelReal}.tmp`;
+      writeFileSync(modelTmp, buf);
+      renameSync(modelTmp, modelReal);
       console.warn(`[rag] embedder model cached (${buf.length} bytes)`);
     }
 
