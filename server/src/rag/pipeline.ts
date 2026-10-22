@@ -26,6 +26,8 @@ export class RagPipeline {
   private embedder: Embedder;
   private unsubscribe?: () => void;
   private indexing = new Map<string, Promise<void>>(); // path → in-flight job
+  // Paths indexed while reindexAll runs; protected from its final prune.
+  private indexedDuringReindex: Set<string> | null = null;
   public lastIndexedAt: number | null = null;
   private cfg: RagConfig;
 
@@ -110,6 +112,7 @@ export class RagPipeline {
   }
 
   private async indexOne(rel: string): Promise<void> {
+    this.indexedDuringReindex?.add(rel);
     const note = await this.vault.readNote(rel);
     const chunks = chunkNote(rel, note.content);
     const tasks = chunkTasks(rel, note.content);
@@ -162,6 +165,11 @@ export class RagPipeline {
     await this.store.deleteTasksByPath(rel);
   }
 
+  // Raw-cosine floor for the active provider; hits below it are dropped.
+  get minScore(): number {
+    return describeProvider(this.cfg).minScore;
+  }
+
   // Public encode hook for ad-hoc queries (used by /api/similar).
   async embed(texts: string[]): Promise<Float32Array[]> {
     return this.embedder.embed(texts);
@@ -184,9 +192,34 @@ export class RagPipeline {
     }
   }
 
+  // Fire-and-forget full index when the store is empty (first enable, or a
+  // vectors.json wiped by a format bump). Used at startup and on runtime
+  // enable.
+  reindexIfEmpty(): void {
+    void (async () => {
+      const count = await this.store.countAll().catch(() => 0);
+      if (count > 0) return;
+      const r = await this.reindexAll();
+      console.log(
+        `[rag] initial index: ${r.indexed} notes / ${r.skipped} skipped in ${r.durationMs}ms`,
+      );
+    })().catch((e) => console.warn("[rag] initial index failed:", e));
+  }
+
   async reindexAll(): Promise<{ indexed: number; skipped: number; durationMs: number }> {
     const t0 = Date.now();
     await this.ensureRunning();
+    this.indexedDuringReindex = new Set();
+    try {
+      return await this.reindexAllTracked(t0);
+    } finally {
+      this.indexedDuringReindex = null;
+    }
+  }
+
+  private async reindexAllTracked(
+    t0: number,
+  ): Promise<{ indexed: number; skipped: number; durationMs: number }> {
     const notes = await this.vault.listAllNotes();
     let indexed = 0;
     let skipped = 0;
@@ -207,6 +240,12 @@ export class RagPipeline {
         this.lastProbeError = msg;
       }
     }
+    // Drop rows for notes deleted while the server was down. Keep anything
+    // in a fresh listing or indexed since the reindex began, so a note
+    // created mid-reindex (even after the listing) keeps its rows.
+    const keep = new Set(await this.vault.listAllNotes());
+    for (const p of this.indexedDuringReindex ?? []) keep.add(p);
+    await this.store.pruneExcept(keep);
     if (errors.length > 0) {
       console.warn(`[rag] reindex skipped ${skipped} of ${notes.length}; first errors:`, errors.slice(0, 5));
     }

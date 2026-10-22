@@ -2,6 +2,7 @@ import { Elysia, t } from "elysia";
 import type { SettingsStore } from "../settings/settings";
 import type { Autocommit } from "../git/autocommit";
 import type { RagPipeline } from "../rag/pipeline";
+import { describeProvider } from "../rag/provider";
 import { asError } from "./errors";
 
 export function settingsRoutes(
@@ -24,13 +25,17 @@ export function settingsRoutes(
           // - enabled flipped on → ensureRunning() opens store + subscribes
           // - any rag change → applyConfig() updates embedder if model/provider changed
           ragPipeline.applyConfig(next.rag);
+          ragPipeline.store.setDim(describeProvider(next.rag).dim);
           if (!prev.rag.enabled && next.rag.enabled) {
             // V59: open the store + probe the embedder up-front so the UI
             // can show a real error banner the moment the user flips Enable
             // RAG, instead of waiting for the first reindex to fail.
             try {
               await ragPipeline.ensureRunning();
-              await ragPipeline.probe();
+              const probe = await ragPipeline.probe();
+              // Same as startup: an empty store (first enable, or a v1
+              // vectors.json wiped by the format bump) gets a full index.
+              if (probe.ok) ragPipeline.reindexIfEmpty();
             } catch (e) {
               console.warn("[rag] enable failed:", e);
             }
@@ -62,17 +67,21 @@ export function settingsRoutes(
                 t.Union([t.Literal("local"), t.Literal("openai-compat")]),
               ),
               local: t.Optional(
+                // All optional: mergeRag fills gaps from the current
+                // config, so e.g. a minScore-only PATCH is valid.
                 t.Object({
-                  model: t.String(),
-                  dim: t.Number(),
+                  model: t.Optional(t.String()),
+                  dim: t.Optional(t.Number()),
+                  minScore: t.Optional(t.Number()),
                 }),
               ),
               openaiCompat: t.Optional(
                 t.Object({
-                  baseURL: t.String(),
-                  model: t.String(),
+                  baseURL: t.Optional(t.String()),
+                  model: t.Optional(t.String()),
                   apiKey: t.Optional(t.String()),
-                  dim: t.Number(),
+                  dim: t.Optional(t.Number()),
+                  minScore: t.Optional(t.Number()),
                 }),
               ),
             }),

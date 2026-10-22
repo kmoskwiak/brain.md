@@ -20,7 +20,7 @@ export interface SettingsPatch {
   bookmarks?: string[];
   dailyDir?: string;
   git?: Partial<GitSettings>;
-  rag?: Partial<RagConfig>;
+  rag?: RagPatch;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -89,7 +89,16 @@ export class SettingsStore {
   }
 }
 
-function mergeRag(cur: RagConfig, patch?: Partial<RagConfig>): RagConfig {
+// Nested provider objects are partial too: mergeRag fills each missing field
+// from the current config.
+export type RagPatch = Partial<
+  Omit<RagConfig, "local" | "openaiCompat"> & {
+    local: Partial<RagConfig["local"]>;
+    openaiCompat: Partial<RagConfig["openaiCompat"]>;
+  }
+>;
+
+function mergeRag(cur: RagConfig, patch?: RagPatch): RagConfig {
   if (!patch) return cur;
   return {
     enabled: typeof patch.enabled === "boolean" ? patch.enabled : cur.enabled,
@@ -97,13 +106,12 @@ function mergeRag(cur: RagConfig, patch?: Partial<RagConfig>): RagConfig {
       patch.provider === "local" || patch.provider === "openai-compat"
         ? patch.provider
         : cur.provider,
+    // The WASM embedder only ships bge-small: model/dim are fixed. Always
+    // reset them so values saved by older builds can't break embedding.
     local: {
-      model:
-        typeof patch.local?.model === "string" ? patch.local.model : cur.local.model,
-      dim:
-        typeof patch.local?.dim === "number" && patch.local.dim > 0
-          ? patch.local.dim
-          : cur.local.dim,
+      model: DEFAULT_RAG_CONFIG.local.model,
+      dim: DEFAULT_RAG_CONFIG.local.dim,
+      minScore: validScore(patch.local?.minScore) ?? cur.local.minScore,
     },
     openaiCompat: {
       baseURL:
@@ -122,8 +130,15 @@ function mergeRag(cur: RagConfig, patch?: Partial<RagConfig>): RagConfig {
         typeof patch.openaiCompat?.dim === "number" && patch.openaiCompat.dim > 0
           ? patch.openaiCompat.dim
           : cur.openaiCompat.dim,
+      minScore: validScore(patch.openaiCompat?.minScore) ?? cur.openaiCompat.minScore,
     },
   };
+}
+
+// Raw cosine floor ∈ [0, 1], 0 = no cutoff; anything else falls back to the
+// current value.
+function validScore(v: unknown): number | undefined {
+  return typeof v === "number" && v >= 0 && v <= 1 ? v : undefined;
 }
 
 function mergeWithDefaults(p: Partial<AppSettings>): AppSettings {

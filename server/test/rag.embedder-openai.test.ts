@@ -75,14 +75,31 @@ describe("OpenAICompatEmbedder — V49", () => {
     expect(mock.calls.length).toBe(0);
   });
 
+  test("L2-normalises vectors (store scores by dot product)", async () => {
+    mock = mockFetch(
+      () =>
+        new Response(JSON.stringify({ data: [{ embedding: [3, 0, 4, 0] }] }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+    );
+    const e = new OpenAICompatEmbedder({
+      baseURL: "http://localhost:1234",
+      model: "m",
+      dim: 4,
+    });
+    const [v] = await e.embed(["a"]);
+    expect(Array.from(v!).map((x) => Math.round(x * 100) / 100)).toEqual([0.6, 0, 0.8, 0]);
+  });
+
   test("POSTs to /v1/embeddings with input + model + optional Bearer", async () => {
     mock = mockFetch(
       () =>
         new Response(
           JSON.stringify({
             data: [
-              { embedding: [0.1, 0.2, 0.3, 0.4] },
-              { embedding: [0.5, 0.6, 0.7, 0.8] },
+              { embedding: [0.5, 0.5, 0.5, 0.5] },
+              { embedding: [0.5, -0.5, 0.5, -0.5] },
             ],
           }),
           { status: 200, headers: { "content-type": "application/json" } },
@@ -98,7 +115,7 @@ describe("OpenAICompatEmbedder — V49", () => {
     expect(out.length).toBe(2);
     // Float32 precision loss: round-trip via Number for comparison
     const v0 = Array.from(out[0]!).map((x) => Math.round(x * 10) / 10);
-    expect(v0).toEqual([0.1, 0.2, 0.3, 0.4]);
+    expect(v0).toEqual([0.5, 0.5, 0.5, 0.5]);
 
     expect(mock.calls.length).toBe(1);
     const call = mock.calls[0]!;

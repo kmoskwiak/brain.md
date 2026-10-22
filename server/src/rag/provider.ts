@@ -20,17 +20,20 @@ export function describeProvider(cfg: RagConfig): {
   providerId: ProviderId;
   modelId: string;
   dim: number;
+  minScore: number;
 } {
   if (cfg.provider === "local") {
     return {
       providerId: "local",
       modelId: cfg.local.model,
       dim: cfg.local.dim,
+      minScore: cfg.local.minScore ?? 0,
     };
   }
   return {
     providerId: "openai-compat",
     modelId: cfg.openaiCompat.model,
     dim: cfg.openaiCompat.dim,
+    minScore: cfg.openaiCompat.minScore ?? 0,
   };
 }

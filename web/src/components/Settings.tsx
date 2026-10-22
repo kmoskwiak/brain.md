@@ -15,8 +15,14 @@ import { useAuth } from "../hooks/useAuth";
 interface RagConfigUI {
   enabled: boolean;
   provider: "local" | "openai-compat";
-  local: { model: string; dim: number };
-  openaiCompat: { baseURL: string; model: string; apiKey?: string; dim: number };
+  local: { model: string; dim: number; minScore?: number };
+  openaiCompat: {
+    baseURL: string;
+    model: string;
+    apiKey?: string;
+    dim: number;
+    minScore?: number;
+  };
 }
 
 interface RagStatusUI {
@@ -347,28 +353,30 @@ function RagPanel() {
       </Field>
       {cfg.provider === "local" ? (
         <>
+          {/* The WASM embedder ships bge-small only — model/dim aren't configurable. */}
           <Field label="Model">
-            <input
-              className="input"
-              value={cfg.local.model}
-              onChange={(e) =>
-                setCfg({ ...cfg, local: { ...cfg.local, model: e.target.value } })
-              }
-              onBlur={() => void save({ local: cfg.local })}
-            />
+            <input className="input" value={cfg.local.model} readOnly />
           </Field>
           <Field label="Dim">
+            <input className="input" type="number" value={cfg.local.dim} readOnly />
+          </Field>
+          <p className="text-xs text-fg-3">Bundled bge-small (384 dims).</p>
+          <Field label="Min score">
             <input
               className="input"
               type="number"
-              value={cfg.local.dim}
-              onChange={(e) =>
-                setCfg({
-                  ...cfg,
-                  local: { ...cfg.local, dim: Number(e.target.value) },
-                })
-              }
-              onBlur={() => void save({ local: cfg.local })}
+              step={0.05}
+              min={0}
+              max={1}
+              // Remount on server value change so a rejected entry resets.
+              key={`local-min-${cfg.local.minScore}`}
+              defaultValue={cfg.local.minScore ?? 0}
+              onBlur={(e) => {
+                // Parse on blur: Number("") / Number("-") would snap to 0
+                // mid-typing and silently disable the cutoff.
+                const v = e.target.valueAsNumber;
+                if (Number.isFinite(v)) void save({ local: { ...cfg.local, minScore: v } });
+              }}
             />
           </Field>
         </>
@@ -433,6 +441,27 @@ function RagPanel() {
               onBlur={() => void save({ openaiCompat: cfg.openaiCompat })}
             />
           </Field>
+          <Field label="Min score">
+            <input
+              className="input"
+              type="number"
+              step={0.05}
+              min={0}
+              max={1}
+              // Remount on server value change so a rejected entry resets.
+              key={`openaiCompat-min-${cfg.openaiCompat.minScore}`}
+              defaultValue={cfg.openaiCompat.minScore ?? 0}
+              onBlur={(e) => {
+                const v = e.target.valueAsNumber;
+                if (Number.isFinite(v))
+                  void save({ openaiCompat: { ...cfg.openaiCompat, minScore: v } });
+              }}
+            />
+          </Field>
+          <p className="text-xs text-fg-3">
+            Hits below this cosine similarity are hidden. Model-specific;
+            0 = no cutoff.
+          </p>
         </>
       )}
       <div className="flex flex-wrap items-center gap-2">

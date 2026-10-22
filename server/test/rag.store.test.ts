@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeAll, afterAll } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { RagStore } from "../src/rag/store";
@@ -166,5 +166,117 @@ describe("RagStore — V47", () => {
       "all",
     );
     expect(remaining[0]!.path).toBe("b.md");
+  });
+
+  // ---------------- scoring + maintenance ----------------
+
+  test("score is raw cosine: identical ≈ 1, orthogonal ≈ 0, opposite ≈ -1", async () => {
+    await store.upsert([
+      makeRow("same.md", 0, [0, 1, 0, 0]),
+      makeRow("orth.md", 0, [1, 0, 0, 0]),
+      makeRow("opp.md", 0, [0, -1, 0, 0]),
+    ]);
+    const hits = await store.search(Float32Array.from([0, 1, 0, 0]), 10);
+    const score = (p: string) => hits.find((h) => h.path === p)!.score;
+    expect(score("same.md")).toBeCloseTo(1, 5);
+    expect(score("orth.md")).toBeCloseTo(0, 5);
+    expect(score("opp.md")).toBeCloseTo(-1, 5);
+  });
+
+  test("rows of a different dim are skipped, not scored NaN", async () => {
+    await store.upsert([makeRow("old-model.md", 0, [1, 0, 0])]);
+    const hits = await store.search(Float32Array.from([1, 0, 0, 0]), 50);
+    expect(hits.find((h) => h.path === "old-model.md")).toBeUndefined();
+    expect(hits.every((h) => Number.isFinite(h.score))).toBe(true);
+    expect((await store.distinctDims()).sort()).toEqual([3, 4]);
+  });
+
+  test("pruneExcept removes rows for paths no longer in the vault", async () => {
+    const removed = await store.pruneExcept(new Set(["b.md", "same.md"]));
+    expect(removed).toBeGreaterThan(0);
+    const hits = await store.search(Float32Array.from([0, 1, 0, 0]), 50);
+    expect(new Set(hits.map((h) => h.path))).toEqual(new Set(["b.md", "same.md"]));
+    const tasks = await store.searchTasks(Float32Array.from([0, 0, 1, 0]), 50, "all");
+    expect(tasks.every((t) => t.path === "b.md")).toBe(true);
+  });
+
+  test("rows of another dim survive reopen at a new dim (switching back keeps them)", async () => {
+    await store.close();
+    // File currently holds DIM-length rows. Reopen as an 8-dim store.
+    const reopened = new RagStore(dir, DIM);
+    reopened.setDim(8);
+    await reopened.open();
+    const kept = await reopened.countAll();
+    expect(kept).toBeGreaterThan(0);
+    // ...but they can't be scored against an 8-dim query.
+    expect(await reopened.search(new Float32Array(8).fill(0.35), 50)).toEqual([]);
+    await reopened.close();
+    // Back at DIM: same rows load and score again.
+    const back = new RagStore(dir, DIM);
+    await back.open();
+    expect(await back.countAll()).toBe(kept);
+    expect((await back.search(Float32Array.from([0, 1, 0, 0]), 1)).length).toBe(1);
+    await back.close();
+  });
+
+  test("search excludePath skips that note's chunks before the top-k cut", async () => {
+    // Previous test closed the shared store.
+    store = new RagStore(dir, DIM);
+    await store.open();
+    await store.upsert([
+      makeRow("seed.md", 0, [0, 1, 0, 0]),
+      makeRow("seed.md", 1, [0, 1, 0, 0]),
+    ]);
+    const hits = await store.search(Float32Array.from([0, 1, 0, 0]), 2, {
+      excludePath: "seed.md",
+    });
+    expect(hits.length).toBe(2);
+    expect(hits.some((h) => h.path === "seed.md")).toBe(false);
+  });
+});
+
+describe("RagStore — format version", () => {
+  test("a v1 vectors.json (512-token chunks) is wiped on open", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "brain-store-v1-"));
+    try {
+      await writeFile(
+        join(dir, "vectors.json"),
+        JSON.stringify({
+          version: 1,
+          dim: DIM,
+          notes: [{ ...makeRow("old.md", 0, [1, 0, 0, 0]), embedding: [1, 0, 0, 0] }],
+          tasks: [],
+        }),
+      );
+      const s = new RagStore(dir, DIM);
+      await s.open();
+      expect(await s.countAll()).toBe(0);
+      await s.close();
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("minScore / pathFilter apply before top-k; minScore 0 = no cutoff", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "brain-store-opts-"));
+    const s = new RagStore(dir, DIM);
+    try {
+      await s.open();
+      await s.upsert([
+        makeRow("hi.md", 0, [0, 0, 0, 1]),
+        makeRow("mid.md", 0, [0, 0, 0.6, 0.8]),
+        makeRow("neg.md", 0, [0, 0, 0, -1]),
+      ]);
+      const q = Float32Array.from([0, 0, 0, 1]);
+      const all = await s.search(q, 50, { minScore: 0 });
+      expect(all.some((h) => h.path === "neg.md")).toBe(true);
+      const floored = await s.search(q, 50, { minScore: 0.5 });
+      expect(floored.map((h) => h.path)).toEqual(["hi.md", "mid.md"]);
+      const filtered = await s.search(q, 1, { pathFilter: (p) => p !== "hi.md" });
+      expect(filtered.map((h) => h.path)).toEqual(["mid.md"]);
+    } finally {
+      await s.close();
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 });

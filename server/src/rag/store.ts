@@ -23,6 +23,22 @@ import type {
 
 export type TaskDoneFilter = "open" | "done" | "all";
 
+// Candidate filters applied BEFORE the top-k cut, so callers get exactly k
+// eligible hits without guessing an over-fetch size.
+export interface SearchOpts {
+  excludePath?: string; // skip a note's own chunks (related / orphans)
+  pathFilter?: (path: string) => boolean; // folder perms + scope
+  minScore?: number; // raw-cosine floor; ≤ 0 = no cutoff
+}
+
+function passes(path: string, score: number, opts: SearchOpts): boolean {
+  if (score === -Infinity) return false; // other-dim row
+  if (path === opts.excludePath) return false;
+  if (opts.minScore !== undefined && opts.minScore > 0 && score < opts.minScore)
+    return false;
+  return opts.pathFilter ? opts.pathFilter(path) : true;
+}
+
 // Internal persisted shape — Float32Array doesn't JSON-serialise, so
 // embeddings live as plain number arrays on disk.
 interface NoteRowDisk {
@@ -49,8 +65,13 @@ interface TaskRowDisk {
   modelId: string;
   providerId: ProviderId;
 }
+// v2: chunk target 512 → 400 tokens (v1 chunks were truncated by bge's
+// 510-WordPiece limit). Bumping the version wipes old files on open, and
+// startup's empty-store check then triggers a full reindex.
+const STORE_VERSION = 2;
+
 interface StoreFile {
-  version: 1;
+  version: number;
   dim: number;
   notes: NoteRowDisk[];
   tasks: TaskRowDisk[];
@@ -85,12 +106,16 @@ function taskToDisk(r: EmbeddedTaskChunk): TaskRowDisk {
   };
 }
 
-function cosineL2Normalised(a: Float32Array, b: number[]): number {
+function dot(a: Float32Array, b: number[]): number {
   // Both vectors are L2-normalised (LocalEmbedderWasm + OpenAI-compat
-  // both normalise) so the dot product IS the cosine similarity.
-  let dot = 0;
-  for (let i = 0; i < a.length; i++) dot += a[i]! * b[i]!;
-  return Math.max(0, Math.min(1, (dot + 1) / 2)); // map [-1, 1] → [0, 1]
+  // both normalise) so the dot product IS the cosine similarity ∈ [-1, 1].
+  // Returned raw: remapping to [0, 1] squeezed bge's unrelated pairs
+  // (raw ≈ 0.35–0.5) up to ≈ 0.7 and made everything look related.
+  // Rows from a different-dim model (pre-reindex) can't be compared → -∞.
+  if (b.length !== a.length) return -Infinity;
+  let sum = 0;
+  for (let i = 0; i < a.length; i++) sum += a[i]! * b[i]!;
+  return sum;
 }
 
 export class RagStore {
@@ -103,8 +128,16 @@ export class RagStore {
 
   constructor(
     public readonly dir: string,
-    public readonly dim: number,
+    public dim: number,
   ) {}
+
+  // Active embedder dim — recorded in the file header only. Rows are never
+  // wiped for a dim mismatch: search() skips other-dim rows, /api/rag/status
+  // reports needsReindex, and a reindex replaces them path by path. Switching
+  // the provider back keeps the old rows usable.
+  setDim(dim: number): void {
+    this.dim = dim;
+  }
 
   private filePath(): string {
     return join(this.dir, "vectors.json");
@@ -116,14 +149,13 @@ export class RagStore {
     if (existsSync(file)) {
       try {
         const raw = JSON.parse(readFileSync(file, "utf8")) as StoreFile;
-        if (raw.version === 1 && raw.dim === this.dim) {
+        if (raw.version !== STORE_VERSION) {
+          console.warn(
+            `[rag] vectors.json format v${raw.version} ≠ v${STORE_VERSION} — wiping (reindex required).`,
+          );
+        } else {
           for (const n of raw.notes) this.notes.set(n.id, n);
           for (const t of raw.tasks) this.tasks.set(t.id, t);
-        } else {
-          // Different dim → embeddings can't be reused. Wipe.
-          console.warn(
-            `[rag] vectors.json dim ${raw.dim} ≠ current ${this.dim} — wiping (reindex required).`,
-          );
         }
       } catch (e) {
         console.warn(
@@ -153,7 +185,7 @@ export class RagStore {
     if (!this.opened) return;
     mkdirSync(dirname(this.filePath()), { recursive: true });
     const payload: StoreFile = {
-      version: 1,
+      version: STORE_VERSION,
       dim: this.dim,
       notes: [...this.notes.values()],
       tasks: [...this.tasks.values()],
@@ -183,11 +215,16 @@ export class RagStore {
     if (changed) this.scheduleWrite();
   }
 
-  async search(vector: Float32Array, k: number): Promise<SearchHit[]> {
+  async search(
+    vector: Float32Array,
+    k: number,
+    opts: SearchOpts = {},
+  ): Promise<SearchHit[]> {
     this.requireOpen();
     const scored: Array<{ r: NoteRowDisk; score: number }> = [];
     for (const r of this.notes.values()) {
-      scored.push({ r, score: cosineL2Normalised(vector, r.embedding) });
+      const score = dot(vector, r.embedding);
+      if (passes(r.path, score, opts)) scored.push({ r, score });
     }
     scored.sort((a, b) => b.score - a.score);
     return scored.slice(0, k).map(({ r, score }) => ({
@@ -221,6 +258,35 @@ export class RagStore {
     return out;
   }
 
+  async distinctDims(): Promise<number[]> {
+    this.requireOpen();
+    const dims = new Set<number>();
+    for (const r of this.notes.values()) dims.add(r.embedding.length);
+    for (const r of this.tasks.values()) dims.add(r.embedding.length);
+    return [...dims];
+  }
+
+  // Drop note + task rows whose path is not in `keep` (notes deleted while
+  // the server was down never got a delete event).
+  async pruneExcept(keep: Set<string>): Promise<number> {
+    this.requireOpen();
+    let removed = 0;
+    for (const [id, r] of this.notes) {
+      if (!keep.has(r.path)) {
+        this.notes.delete(id);
+        removed++;
+      }
+    }
+    for (const [id, r] of this.tasks) {
+      if (!keep.has(r.path)) {
+        this.tasks.delete(id);
+        removed++;
+      }
+    }
+    if (removed > 0) this.scheduleWrite();
+    return removed;
+  }
+
   // ---------------- tasks (V55) ----------------
 
   async upsertTasks(rows: EmbeddedTaskChunk[]): Promise<void> {
@@ -246,13 +312,15 @@ export class RagStore {
     vector: Float32Array,
     k: number,
     filter: TaskDoneFilter = "open",
+    opts: SearchOpts = {},
   ): Promise<TaskHit[]> {
     this.requireOpen();
     const scored: Array<{ r: TaskRowDisk; score: number }> = [];
     for (const r of this.tasks.values()) {
       if (filter === "open" && r.done) continue;
       if (filter === "done" && !r.done) continue;
-      scored.push({ r, score: cosineL2Normalised(vector, r.embedding) });
+      const score = dot(vector, r.embedding);
+      if (passes(r.path, score, opts)) scored.push({ r, score });
     }
     scored.sort((a, b) => b.score - a.score);
     return scored.slice(0, k).map(({ r, score }) => ({

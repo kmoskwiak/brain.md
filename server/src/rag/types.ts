@@ -22,6 +22,10 @@ export type ProviderId = "local" | "openai-compat";
 export interface LocalProviderConfig {
   model: string; // e.g. "Xenova/bge-small-en-v1.5"
   dim: number; // 384
+  // Hits below this raw cosine are dropped from related/similar/context.
+  // ∈ [0, 1], 0 = no cutoff. Model-specific: bge-small scores unrelated
+  // text ≈ 0.35–0.5.
+  minScore?: number;
 }
 
 export interface OpenAICompatProviderConfig {
@@ -29,6 +33,7 @@ export interface OpenAICompatProviderConfig {
   model: string; // e.g. "text-embedding-3-small" or "nomic-embed-text"
   apiKey?: string;
   dim: number;
+  minScore?: number; // see LocalProviderConfig.minScore
 }
 
 export interface RagConfig {
@@ -41,18 +46,19 @@ export interface RagConfig {
 export const DEFAULT_RAG_CONFIG: RagConfig = {
   enabled: false,
   provider: "local",
-  local: { model: "Xenova/bge-small-en-v1.5", dim: 384 },
+  local: { model: "Xenova/bge-small-en-v1.5", dim: 384, minScore: 0.6 },
   openaiCompat: {
     baseURL: "http://localhost:11434/v1",
     model: "nomic-embed-text",
     dim: 768,
+    minScore: 0,
   },
 };
 
 export interface SearchHit {
   path: string;
   chunkIndex: number;
-  score: number; // cosine similarity ∈ [0, 1]
+  score: number; // cosine similarity ∈ [-1, 1]
   snippet: string;
   headingTrail: string[];
   lineStart: number;
@@ -72,8 +78,9 @@ export interface RagStatus {
   lastError: string | null;
 }
 
-// V49: chunker constants
-export const CHUNK_TARGET_TOKENS = 512;
+// V49: chunker constants. Counted in cl100k tokens; bge-small's WordPiece
+// runs ≈1.17× that and truncates at 510, so 512 lost chunk tails. 400 fits.
+export const CHUNK_TARGET_TOKENS = 400;
 export const CHUNK_OVERLAP_TOKENS = 64;
 
 // V55: per-task indexed unit (parallel to Chunk for note body).

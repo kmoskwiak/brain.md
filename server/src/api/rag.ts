@@ -78,8 +78,9 @@ export function ragRoutes(
         }
         try {
           const vec = (await pipeline.embed([q]))[0]!;
-          const hits = await pipeline.store.search(vec, k);
-          return hits;
+          return await pipeline.store.search(vec, k, {
+            minScore: pipeline.minScore,
+          });
         } catch (e) {
           set.status = 500;
           return {
@@ -99,9 +100,11 @@ export function ragRoutes(
         chunks = await pipeline.store.countAll();
         if (chunks > 0) {
           const distinct = await pipeline.store.distinctProviderModel();
-          needsReindex = distinct.some(
-            (d) => d.providerId !== desc.providerId || d.modelId !== desc.modelId,
-          );
+          const dims = await pipeline.store.distinctDims();
+          needsReindex =
+            distinct.some(
+              (d) => d.providerId !== desc.providerId || d.modelId !== desc.modelId,
+            ) || dims.some((d) => d !== desc.dim);
         }
       } catch {
         // store not opened or empty → leave defaults
@@ -175,7 +178,9 @@ export function ragRoutes(
       "/api/orphans",
       async ({ query, set }) => {
         const limit = Number(query.limit ?? 10);
-        const minIso = Number(query.min_isolation ?? 0.35);
+        // Unset → derived from the provider's minScore (see orphans()).
+        const minIso =
+          query.min_isolation !== undefined ? Number(query.min_isolation) : undefined;
         try {
           return await qOrphans(deps, limit, minIso);
         } catch (e) {

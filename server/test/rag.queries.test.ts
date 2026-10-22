@@ -1,4 +1,7 @@
 import { describe, test, expect } from "bun:test";
+import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
   contextForQuery,
   semanticOutline,
@@ -7,11 +10,13 @@ import {
   orphans,
   related,
   similarTasks,
+  similarNotes,
+  defaultMinIsolation,
   RagDisabledError,
   type RagDeps,
 } from "../src/rag/queries";
 import type { SearchHit, TaskHit } from "../src/rag/types";
-import type { TaskDoneFilter } from "../src/rag/store";
+import type { SearchOpts, TaskDoneFilter } from "../src/rag/store";
 
 // V54: queries layer unit tests with hand-rolled deps. We deliberately
 // avoid spinning up LanceDB or a real embedder — we only need to verify
@@ -27,18 +32,41 @@ interface NoteSpec {
   mtime?: number;
 }
 
+function applyStoreOpts<T extends { path: string; score: number }>(
+  rows: T[],
+  k: number,
+  o: SearchOpts,
+): T[] {
+  return rows
+    .filter(
+      (r) =>
+        r.path !== o.excludePath &&
+        !(o.minScore !== undefined && o.minScore > 0 && r.score < o.minScore) &&
+        (o.pathFilter ? o.pathFilter(r.path) : true),
+    )
+    .sort((a, b) => b.score - a.score)
+    .slice(0, k);
+}
+
 function makeDeps(opts: {
   notes: NoteSpec[];
   backlinks?: Record<string, string[]>;
   embed?: (texts: string[]) => Promise<Float32Array[]>;
-  search?: (vec: Float32Array, k: number) => Promise<SearchHit[]>;
+  search?: (
+    vec: Float32Array,
+    k: number,
+    opts?: SearchOpts,
+  ) => Promise<SearchHit[]>;
   searchTasks?: (
     vec: Float32Array,
     k: number,
     filter: TaskDoneFilter,
+    opts?: SearchOpts,
   ) => Promise<TaskHit[]>;
   perms?: Record<string, { read: boolean; write: boolean }>;
   enabled?: boolean;
+  minScore?: number;
+  vaultRoot?: string; // real dir so `.brain/folder-meta.json` perms load
 }): RagDeps {
   const notesByPath = new Map(opts.notes.map((n) => [n.path, n]));
   const vault = {
@@ -50,7 +78,9 @@ function makeDeps(opts: {
     // The folder-perm loader reads `.brain/folders.json`; without that
     // file the loader returns `{ mcp: {} }`, which means default perms
     // (read/write true) for every path — exactly what most tests want.
-    root: "/tmp/nonexistent-brain-queries-test",
+    root: opts.vaultRoot ?? "/tmp/nonexistent-brain-queries-test",
+    abs: (rel: string) =>
+      join(opts.vaultRoot ?? "/tmp/nonexistent-brain-queries-test", rel),
   } as unknown as RagDeps["vault"];
 
   const entries = opts.notes.map((n) => ({
@@ -70,10 +100,24 @@ function makeDeps(opts: {
   } as unknown as RagDeps["index"];
 
   const pipeline = {
+    minScore: opts.minScore ?? 0,
     embed: opts.embed ?? (async (texts: string[]) => texts.map(() => makeVec([1, 0, 0]))),
+    // Stubs return candidate rows; the wrapper applies SearchOpts + top-k
+    // the way RagStore does, so the queries layer is tested end to end.
     store: {
-      search: opts.search ?? (async () => []),
-      searchTasks: opts.searchTasks ?? (async () => []),
+      search: async (v: Float32Array, k: number, o: SearchOpts = {}) =>
+        applyStoreOpts(await (opts.search ?? (async () => []))(v, k, o), k, o),
+      searchTasks: async (
+        v: Float32Array,
+        k: number,
+        f: TaskDoneFilter,
+        o: SearchOpts = {},
+      ) =>
+        applyStoreOpts(
+          await (opts.searchTasks ?? (async () => []))(v, k, f, o),
+          k,
+          o,
+        ),
     },
   } as unknown as RagDeps["pipeline"];
 
@@ -82,6 +126,18 @@ function makeDeps(opts: {
     index,
     pipeline,
     ragEnabled: () => opts.enabled ?? true,
+  };
+}
+
+function hit(path: string, score: number, chunkIndex = 0): SearchHit {
+  return {
+    path,
+    chunkIndex,
+    score,
+    snippet: `${path}#${chunkIndex}`,
+    headingTrail: [],
+    lineStart: 1,
+    lineEnd: 1,
   };
 }
 
@@ -128,6 +184,95 @@ describe("queries — V54 perm + composition", () => {
     });
     const out = await related(deps, "a.md", 5);
     expect(out.map((h) => h.path)).toEqual(["b.md"]);
+  });
+
+  test("related dedupes by path, keeping the best chunk per note", async () => {
+    const deps = makeDeps({
+      notes: [{ path: "a.md", body: "# A\n\nseed text" }],
+      search: async () => [
+        hit("b.md", 0.9, 0),
+        hit("b.md", 0.85, 1),
+        hit("c.md", 0.8, 0),
+        hit("b.md", 0.7, 2),
+      ],
+    });
+    const out = await related(deps, "a.md", 5);
+    expect(out.map((h) => [h.path, h.chunkIndex])).toEqual([
+      ["b.md", 0],
+      ["c.md", 0],
+    ]);
+  });
+
+  test("related asks the store to exclude the seed note's own chunks", async () => {
+    let seen: { excludePath?: string } | undefined;
+    const deps = makeDeps({
+      notes: [{ path: "a.md", body: "# A\n\nseed text" }],
+      search: async (_v, _k, o) => {
+        seen = o;
+        return [hit("b.md", 0.8)];
+      },
+    });
+    await related(deps, "a.md", 5);
+    expect(seen?.excludePath).toBe("a.md");
+  });
+
+  test("related / similar / context drop hits below minScore", async () => {
+    const search = async () => [hit("b.md", 0.75), hit("c.md", 0.45)];
+    const deps = makeDeps({
+      notes: [{ path: "a.md", body: "# A\n\nseed text" }],
+      search,
+      minScore: 0.6,
+    });
+    expect((await related(deps, "a.md", 5)).map((h) => h.path)).toEqual(["b.md"]);
+    expect((await similarNotes(deps, "q", 5)).map((h) => h.path)).toEqual(["b.md"]);
+    const ctx = await contextForQuery(deps, "q");
+    expect(ctx.sources.map((s) => s.path)).toEqual(["b.md"]);
+  });
+
+  test("orphans: a long note's own chunks are excluded from its nearest neighbour", async () => {
+    // long.md has 6 chunks that match its seed almost perfectly; its only
+    // other neighbour is unrelated (0.3). If the store isn't told to exclude
+    // long.md, a self-chunk becomes the "nearest neighbour" (0.99) and the
+    // note is wrongly reported as connected.
+    const excluded: Array<string | undefined> = [];
+    const deps = makeDeps({
+      notes: [
+        { path: "long.md", body: "# Long\n\nseed" },
+        { path: "far.md", body: "# Far\n\nlinked" },
+      ],
+      backlinks: { "far.md": ["long.md"] },
+      search: async (_v, _k, o) => {
+        excluded.push(o?.excludePath);
+        return [
+          ...Array.from({ length: 6 }, (_, i) => hit("long.md", 0.99 - i * 0.01, i)),
+          hit("far.md", 0.3),
+        ];
+      },
+    });
+    const out = await orphans(deps, 10, 0.35);
+    expect(excluded).toEqual(["long.md"]);
+    expect(out.map((o) => o.path)).toEqual(["long.md"]);
+    expect(out[0]!.isolation).toBeCloseTo(0.7);
+  });
+
+  test("similarNotes drops read-denied folders (MCP perms)", async () => {
+    const root = await mkdtemp(join(tmpdir(), "brain-queries-perms-"));
+    try {
+      await mkdir(join(root, ".brain"), { recursive: true });
+      await writeFile(
+        join(root, ".brain", "folder-meta.json"),
+        JSON.stringify({ mcp: { private: { read: false, write: false } } }),
+      );
+      const deps = makeDeps({
+        notes: [],
+        vaultRoot: root,
+        search: async () => [hit("private/secret.md", 0.9), hit("public.md", 0.8)],
+      });
+      const out = await similarNotes(deps, "q", 5);
+      expect(out.map((h) => h.path)).toEqual(["public.md"]);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
   });
 
   test("contextForQuery packs blocks until budget exceeded and reports truncation", async () => {
@@ -299,5 +444,36 @@ describe("queries — V54 perm + composition", () => {
     const out = await semanticOutline(deps, "x.md", 0.5);
     expect(out.length).toBe(1);
     expect(out[0]!.chunkCount).toBeGreaterThanOrEqual(1);
+  });
+
+  test("related returns k distinct notes even when one note has many top chunks", async () => {
+    const deps = makeDeps({
+      notes: [{ path: "a.md", body: "# A\n\nseed text" }],
+      search: async () => [
+        ...Array.from({ length: 30 }, (_, i) => hit("b.md", 0.95 - i * 0.001, i)),
+        hit("c.md", 0.7),
+      ],
+    });
+    const out = await related(deps, "a.md", 2);
+    expect(out.map((h) => h.path)).toEqual(["b.md", "c.md"]);
+  });
+
+  test("orphans default cutoff follows minScore (orphan ⇔ nothing Related would show)", async () => {
+    expect(defaultMinIsolation(0.6)).toBeCloseTo(0.4);
+    expect(defaultMinIsolation(0)).toBe(0.35);
+    const mk = (nearest: number) =>
+      makeDeps({
+        notes: [
+          { path: "x.md", body: "# X\n\nseed" },
+          { path: "y.md", body: "# Y\n\nother" },
+        ],
+        backlinks: { "y.md": ["x.md"] },
+        minScore: 0.6,
+        search: async () => [hit("y.md", nearest)],
+      });
+    // 0.62 ≥ minScore → would show in Related → not an orphan.
+    expect((await orphans(mk(0.62))).map((o) => o.path)).toEqual([]);
+    // 0.55 < minScore → orphan.
+    expect((await orphans(mk(0.55))).map((o) => o.path)).toEqual(["x.md"]);
   });
 });

@@ -57,18 +57,42 @@ export function inScope(path: string, prefixes: string[]): boolean {
   return prefixes.some((p) => path === p || path.startsWith(`${p}/`));
 }
 
-// V54: drop result rows whose path is NOT read-allowed by MCP folder perms.
-// V69: also drop rows outside the requested folder scope (if any).
-async function filterReadable<T extends { path: string }>(
+// V54: only paths read-allowed by MCP folder perms.
+// V69: and inside the requested folder scope (if any).
+// Passed to the store as `pathFilter` so it applies before the top-k cut.
+async function readableFilter(
   vault: Vault,
-  rows: T[],
-  scope?: string[],
-): Promise<T[]> {
+  prefixes: string[],
+): Promise<(path: string) => boolean> {
   const map = await permsMap(vault);
-  const prefixes = scope ?? [];
-  return rows.filter(
-    (r) => resolveFolderPerms(r.path, map).read && inScope(r.path, prefixes),
-  );
+  return (p) => resolveFolderPerms(p, map).read && inScope(p, prefixes);
+}
+
+// Keep the best-scoring hit per path, preserving score order.
+function bestPerPath<T extends { path: string; score: number }>(rows: T[]): T[] {
+  const best = new Map<string, T>();
+  for (const h of rows) {
+    const prev = best.get(h.path);
+    if (!prev || h.score > prev.score) best.set(h.path, h);
+  }
+  return [...best.values()].sort((a, b) => b.score - a.score);
+}
+
+// ---------------- similar ----------------
+
+export async function similarNotes(
+  deps: RagDeps,
+  q: string,
+  k = 5,
+  scope?: Scope,
+): Promise<SearchHit[]> {
+  assertEnabled(deps);
+  if (q.trim() === "") return [];
+  const [vec] = await deps.pipeline.embed([q]);
+  return deps.pipeline.store.search(vec!, k, {
+    pathFilter: await readableFilter(deps.vault, normalizeScope(scope)),
+    minScore: deps.pipeline.minScore,
+  });
 }
 
 // ---------------- related ----------------
@@ -93,13 +117,15 @@ export async function related(
   // Use the first chunk as the seed — usually the headline + intro paragraph.
   // Cheaper than averaging across all chunks and good enough for "what is
   // this note about".
-  const prefixes = normalizeScope(scope);
   const [vec] = await deps.pipeline.embed([chunks[0]!.text]);
-  // Over-fetch so the scope/perm filter still leaves ~k hits.
-  const fetchK = prefixes.length > 0 ? k + 50 : k + 5;
-  const hits = await deps.pipeline.store.search(vec!, fetchK);
-  const filtered = await filterReadable(deps.vault, hits, prefixes);
-  return filtered.filter((h) => h.path !== path).slice(0, k);
+  // All eligible chunks (not top-k): a note can match via many chunks, so
+  // only per-path dedupe tells how many distinct notes there are.
+  const hits = await deps.pipeline.store.search(vec!, Infinity, {
+    excludePath: path,
+    pathFilter: await readableFilter(deps.vault, normalizeScope(scope)),
+    minScore: deps.pipeline.minScore,
+  });
+  return bestPerPath(hits).slice(0, k);
 }
 
 // ---------------- context ----------------
@@ -124,22 +150,15 @@ export async function contextForQuery(
   assertEnabled(deps);
   if (q.trim() === "") return { text: "", sources: [], truncated: false };
 
-  const prefixes = normalizeScope(scope);
   const [vec] = await deps.pipeline.embed([q]);
-  // Over-fetch under a scope so enough in-scope candidates survive the filter.
-  const candidates = await deps.pipeline.store.search(
-    vec!,
-    prefixes.length > 0 ? 80 : 20,
-  );
-  const readable = await filterReadable(deps.vault, candidates, prefixes);
+  // All eligible chunks; the token budget below decides how many are used.
+  const candidates = await deps.pipeline.store.search(vec!, Infinity, {
+    pathFilter: await readableFilter(deps.vault, normalizeScope(scope)),
+    minScore: deps.pipeline.minScore,
+  });
 
   // Greedy pack ordered by score, dedupe by path (highest-score per path).
-  const bestByPath = new Map<string, SearchHit>();
-  for (const h of readable) {
-    const prev = bestByPath.get(h.path);
-    if (!prev || h.score > prev.score) bestByPath.set(h.path, h);
-  }
-  const ordered = [...bestByPath.values()].sort((a, b) => b.score - a.score);
+  const ordered = bestPerPath(candidates);
 
   const parts: string[] = [];
   const sources: ContextResult["sources"] = [];
@@ -285,13 +304,21 @@ export interface OrphanNote {
   inboundLinks: number;
 }
 
+// Default isolation cutoff = 1 - minScore: a note is an orphan exactly when
+// its nearest neighbour wouldn't make the Related list. Without a floor
+// (minScore 0) fall back to 0.35, i.e. nearest neighbour ≤ 0.65.
+export function defaultMinIsolation(minScore: number): number {
+  return minScore > 0 ? 1 - minScore : 0.35;
+}
+
 export async function orphans(
   deps: RagDeps,
   limit = 10,
-  minIsolation = 0.35,
+  minIsolation?: number,
   scope?: Scope,
 ): Promise<OrphanNote[]> {
   assertEnabled(deps);
+  const cutoff = minIsolation ?? defaultMinIsolation(deps.pipeline.minScore);
   const map = await permsMap(deps.vault);
   const prefixes = normalizeScope(scope);
   const entries = deps.index.entries();
@@ -327,12 +354,14 @@ export async function orphans(
   const out: OrphanNote[] = [];
   for (let n = 0; n < validIdx.length; n++) {
     const p = noBacklinks[validIdx[n]!]!;
-    const hits = await deps.pipeline.store.search(vecs[n]!, 5);
-    // Exclude self; the top remaining score is the closest neighbour.
-    const others = hits.filter((h) => h.path !== p);
-    const topSim = others[0]?.score ?? 0;
+    // Nearest neighbour other than itself. No minScore here: isolation needs
+    // the true top score, however low.
+    const [nearest] = await deps.pipeline.store.search(vecs[n]!, 1, {
+      excludePath: p,
+    });
+    const topSim = Math.max(0, nearest?.score ?? 0);
     const isolation = 1 - topSim;
-    if (isolation >= minIsolation) {
+    if (isolation >= cutoff) {
       out.push({
         path: p,
         isolation,
@@ -518,10 +547,9 @@ export async function similarTasks(
 ): Promise<TaskHit[]> {
   assertEnabled(deps);
   if (query.trim() === "") return [];
-  const prefixes = normalizeScope(scope);
   const [vec] = await deps.pipeline.embed([query]);
-  const fetchK = prefixes.length > 0 ? k + 50 : k + 5;
-  const hits = await deps.pipeline.store.searchTasks(vec!, fetchK, filter);
-  const filtered = await filterReadable(deps.vault, hits, prefixes);
-  return filtered.slice(0, k);
+  return deps.pipeline.store.searchTasks(vec!, k, filter, {
+    pathFilter: await readableFilter(deps.vault, normalizeScope(scope)),
+    minScore: deps.pipeline.minScore,
+  });
 }
