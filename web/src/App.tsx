@@ -352,7 +352,7 @@ export function App() {
   // once the PWA title bar is hidden (Window Controls Overlay).
   useEffect(() => {
     const name = path ? path.replace(/\.md$/, "").split("/").pop() : null;
-    document.title = name ? `${name} — brain.md` : "brain.md";
+    document.title = name ? `${name} — folio` : "folio";
   }, [path]);
 
   useEffect(() => {
