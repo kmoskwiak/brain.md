@@ -20,7 +20,7 @@ export interface SettingsPatch {
   bookmarks?: string[];
   dailyDir?: string;
   git?: Partial<GitSettings>;
-  rag?: Partial<RagConfig>;
+  rag?: RagPatch;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -89,7 +89,16 @@ export class SettingsStore {
   }
 }
 
-function mergeRag(cur: RagConfig, patch?: Partial<RagConfig>): RagConfig {
+// Nested provider objects are partial too: mergeRag fills each missing field
+// from the current config.
+export type RagPatch = Partial<
+  Omit<RagConfig, "local" | "openaiCompat"> & {
+    local: Partial<RagConfig["local"]>;
+    openaiCompat: Partial<RagConfig["openaiCompat"]>;
+  }
+>;
+
+function mergeRag(cur: RagConfig, patch?: RagPatch): RagConfig {
   if (!patch) return cur;
   return {
     enabled: typeof patch.enabled === "boolean" ? patch.enabled : cur.enabled,
@@ -126,9 +135,10 @@ function mergeRag(cur: RagConfig, patch?: Partial<RagConfig>): RagConfig {
   };
 }
 
-// Raw cosine floor ∈ [-1, 1]; anything else falls back to the current value.
+// Raw cosine floor ∈ [0, 1], 0 = no cutoff; anything else falls back to the
+// current value.
 function validScore(v: unknown): number | undefined {
-  return typeof v === "number" && v >= -1 && v <= 1 ? v : undefined;
+  return typeof v === "number" && v >= 0 && v <= 1 ? v : undefined;
 }
 
 function mergeWithDefaults(p: Partial<AppSettings>): AppSettings {

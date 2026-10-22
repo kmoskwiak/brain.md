@@ -91,4 +91,18 @@ describe("settings PATCH — rag must round-trip (regression)", () => {
     expect(patched.json.rag.local.model).toBe("Xenova/bge-small-en-v1.5");
     expect(patched.json.rag.local.dim).toBe(384);
   });
+
+  test("minScore can be PATCHed alone; negative is rejected (0 = no cutoff)", async () => {
+    const ok = await fetchJson("PATCH", "/api/settings", {
+      rag: { openaiCompat: { minScore: 0.3 } },
+    });
+    expect(ok.status).toBe(200);
+    expect(ok.json.rag.openaiCompat.minScore).toBe(0.3);
+    expect(ok.json.rag.openaiCompat.baseURL).toBe("http://example.test/v1");
+
+    const neg = await fetchJson("PATCH", "/api/settings", {
+      rag: { openaiCompat: { minScore: -0.2 } },
+    });
+    expect(neg.json.rag.openaiCompat.minScore).toBe(0.3);
+  });
 });

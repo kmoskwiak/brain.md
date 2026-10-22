@@ -366,7 +366,7 @@ function RagPanel() {
               className="input"
               type="number"
               step={0.05}
-              min={-1}
+              min={0}
               max={1}
               // Remount on server value change so a rejected entry resets.
               key={`local-min-${cfg.local.minScore}`}
@@ -446,7 +446,7 @@ function RagPanel() {
               className="input"
               type="number"
               step={0.05}
-              min={-1}
+              min={0}
               max={1}
               // Remount on server value change so a rejected entry resets.
               key={`openaiCompat-min-${cfg.openaiCompat.minScore}`}

@@ -79,18 +79,8 @@ async function main() {
       await ragStore.open();
       ragPipeline.applyConfig(loaded.rag);
       ragPipeline.start();
-      const count = await ragStore.countAll().catch(() => 0);
-      if (count === 0) {
-        // fire-and-forget initial reindex (V50)
-        void ragPipeline
-          .reindexAll()
-          .then((r) =>
-            console.log(
-              `[rag] initial index: ${r.indexed} notes / ${r.skipped} skipped in ${r.durationMs}ms`,
-            ),
-          )
-          .catch((e) => console.warn("[rag] initial index failed:", e));
-      }
+      // fire-and-forget initial reindex if empty (V50)
+      ragPipeline.reindexIfEmpty();
     } catch (e) {
       console.warn("[rag] startup failed; RAG disabled:", e);
     }

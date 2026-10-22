@@ -200,13 +200,23 @@ describe("RagStore — V47", () => {
     expect(tasks.every((t) => t.path === "b.md")).toBe(true);
   });
 
-  test("setDim before open wipes a vectors.json written at another dim", async () => {
+  test("rows of another dim survive reopen at a new dim (switching back keeps them)", async () => {
     await store.close();
-    const reopened = new RagStore(dir, 99);
+    // File currently holds DIM-length rows. Reopen as an 8-dim store.
+    const reopened = new RagStore(dir, DIM);
     reopened.setDim(8);
     await reopened.open();
-    expect(await reopened.countAll()).toBe(0);
+    const kept = await reopened.countAll();
+    expect(kept).toBeGreaterThan(0);
+    // ...but they can't be scored against an 8-dim query.
+    expect(await reopened.search(new Float32Array(8).fill(0.35), 50)).toEqual([]);
     await reopened.close();
+    // Back at DIM: same rows load and score again.
+    const back = new RagStore(dir, DIM);
+    await back.open();
+    expect(await back.countAll()).toBe(kept);
+    expect((await back.search(Float32Array.from([0, 1, 0, 0]), 1)).length).toBe(1);
+    await back.close();
   });
 
   test("search excludePath skips that note's chunks before the top-k cut", async () => {
@@ -243,6 +253,29 @@ describe("RagStore — format version", () => {
       expect(await s.countAll()).toBe(0);
       await s.close();
     } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("minScore / pathFilter apply before top-k; minScore 0 = no cutoff", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "brain-store-opts-"));
+    const s = new RagStore(dir, DIM);
+    try {
+      await s.open();
+      await s.upsert([
+        makeRow("hi.md", 0, [0, 0, 0, 1]),
+        makeRow("mid.md", 0, [0, 0, 0.6, 0.8]),
+        makeRow("neg.md", 0, [0, 0, 0, -1]),
+      ]);
+      const q = Float32Array.from([0, 0, 0, 1]);
+      const all = await s.search(q, 50, { minScore: 0 });
+      expect(all.some((h) => h.path === "neg.md")).toBe(true);
+      const floored = await s.search(q, 50, { minScore: 0.5 });
+      expect(floored.map((h) => h.path)).toEqual(["hi.md", "mid.md"]);
+      const filtered = await s.search(q, 1, { pathFilter: (p) => p !== "hi.md" });
+      expect(filtered.map((h) => h.path)).toEqual(["mid.md"]);
+    } finally {
+      await s.close();
       await rm(dir, { recursive: true, force: true });
     }
   });

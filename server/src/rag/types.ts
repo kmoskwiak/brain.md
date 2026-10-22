@@ -23,7 +23,8 @@ export interface LocalProviderConfig {
   model: string; // e.g. "Xenova/bge-small-en-v1.5"
   dim: number; // 384
   // Hits below this raw cosine are dropped from related/similar/context.
-  // Model-specific: bge-small scores unrelated text ≈ 0.35–0.5.
+  // ∈ [0, 1], 0 = no cutoff. Model-specific: bge-small scores unrelated
+  // text ≈ 0.35–0.5.
   minScore?: number;
 }
 
@@ -32,7 +33,7 @@ export interface OpenAICompatProviderConfig {
   model: string; // e.g. "text-embedding-3-small" or "nomic-embed-text"
   apiKey?: string;
   dim: number;
-  minScore?: number; // see LocalProviderConfig.minScore; 0 = no cutoff
+  minScore?: number; // see LocalProviderConfig.minScore
 }
 
 export interface RagConfig {

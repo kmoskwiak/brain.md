@@ -467,7 +467,7 @@ function registerHandlers(server: McpServer, deps: McpDeps): void {
     "find_orphans",
     {
       description:
-        "Notes with zero backlinks AND low semantic neighbours (isolation = 1 - max cosine).",
+        "Notes with zero backlinks AND low semantic neighbours (isolation = 1 - max cosine). Default min_isolation = 1 - the provider's min score, i.e. no neighbour close enough to count as related.",
       inputSchema: {
         limit: z.number().int().min(1).max(50).optional(),
         min_isolation: z.number().min(0).max(1).optional(),
@@ -476,7 +476,7 @@ function registerHandlers(server: McpServer, deps: McpDeps): void {
     },
     async ({ limit, min_isolation, scope }) => {
       try {
-        const out = await qOrphans(ragDeps, limit ?? 10, min_isolation ?? 0.35, scope);
+        const out = await qOrphans(ragDeps, limit ?? 10, min_isolation, scope);
         logCall("find_orphans", { limit, min_isolation, scope }, true);
         return { content: [{ type: "text", text: JSON.stringify(out) }] };
       } catch (err) {

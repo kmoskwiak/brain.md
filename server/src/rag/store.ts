@@ -23,6 +23,22 @@ import type {
 
 export type TaskDoneFilter = "open" | "done" | "all";
 
+// Candidate filters applied BEFORE the top-k cut, so callers get exactly k
+// eligible hits without guessing an over-fetch size.
+export interface SearchOpts {
+  excludePath?: string; // skip a note's own chunks (related / orphans)
+  pathFilter?: (path: string) => boolean; // folder perms + scope
+  minScore?: number; // raw-cosine floor; ≤ 0 = no cutoff
+}
+
+function passes(path: string, score: number, opts: SearchOpts): boolean {
+  if (score === -Infinity) return false; // other-dim row
+  if (path === opts.excludePath) return false;
+  if (opts.minScore !== undefined && opts.minScore > 0 && score < opts.minScore)
+    return false;
+  return opts.pathFilter ? opts.pathFilter(path) : true;
+}
+
 // Internal persisted shape — Float32Array doesn't JSON-serialise, so
 // embeddings live as plain number arrays on disk.
 interface NoteRowDisk {
@@ -115,10 +131,10 @@ export class RagStore {
     public dim: number,
   ) {}
 
-  // Active embedder dim. Before open(): a vectors.json written at another dim
-  // is wiped instead of loaded. After open() (provider switched at runtime):
-  // rows stay put — search() skips other-dim rows and /api/rag/status reports
-  // needsReindex until a reindex replaces them.
+  // Active embedder dim — recorded in the file header only. Rows are never
+  // wiped for a dim mismatch: search() skips other-dim rows, /api/rag/status
+  // reports needsReindex, and a reindex replaces them path by path. Switching
+  // the provider back keeps the old rows usable.
   setDim(dim: number): void {
     this.dim = dim;
   }
@@ -137,14 +153,9 @@ export class RagStore {
           console.warn(
             `[rag] vectors.json format v${raw.version} ≠ v${STORE_VERSION} — wiping (reindex required).`,
           );
-        } else if (raw.dim === this.dim) {
+        } else {
           for (const n of raw.notes) this.notes.set(n.id, n);
           for (const t of raw.tasks) this.tasks.set(t.id, t);
-        } else {
-          // Different dim → embeddings can't be reused. Wipe.
-          console.warn(
-            `[rag] vectors.json dim ${raw.dim} ≠ current ${this.dim} — wiping (reindex required).`,
-          );
         }
       } catch (e) {
         console.warn(
@@ -204,19 +215,16 @@ export class RagStore {
     if (changed) this.scheduleWrite();
   }
 
-  // `excludePath`: skip that note's own chunks, so a long seed note can't
-  // crowd its neighbours out of the top-k (related / orphans).
   async search(
     vector: Float32Array,
     k: number,
-    opts: { excludePath?: string } = {},
+    opts: SearchOpts = {},
   ): Promise<SearchHit[]> {
     this.requireOpen();
     const scored: Array<{ r: NoteRowDisk; score: number }> = [];
     for (const r of this.notes.values()) {
-      if (r.path === opts.excludePath) continue;
       const score = dot(vector, r.embedding);
-      if (score !== -Infinity) scored.push({ r, score });
+      if (passes(r.path, score, opts)) scored.push({ r, score });
     }
     scored.sort((a, b) => b.score - a.score);
     return scored.slice(0, k).map(({ r, score }) => ({
@@ -304,6 +312,7 @@ export class RagStore {
     vector: Float32Array,
     k: number,
     filter: TaskDoneFilter = "open",
+    opts: SearchOpts = {},
   ): Promise<TaskHit[]> {
     this.requireOpen();
     const scored: Array<{ r: TaskRowDisk; score: number }> = [];
@@ -311,7 +320,7 @@ export class RagStore {
       if (filter === "open" && r.done) continue;
       if (filter === "done" && !r.done) continue;
       const score = dot(vector, r.embedding);
-      if (score !== -Infinity) scored.push({ r, score });
+      if (passes(r.path, score, opts)) scored.push({ r, score });
     }
     scored.sort((a, b) => b.score - a.score);
     return scored.slice(0, k).map(({ r, score }) => ({

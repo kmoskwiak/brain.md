@@ -11,11 +11,12 @@ import {
   related,
   similarTasks,
   similarNotes,
+  defaultMinIsolation,
   RagDisabledError,
   type RagDeps,
 } from "../src/rag/queries";
 import type { SearchHit, TaskHit } from "../src/rag/types";
-import type { TaskDoneFilter } from "../src/rag/store";
+import type { SearchOpts, TaskDoneFilter } from "../src/rag/store";
 
 // V54: queries layer unit tests with hand-rolled deps. We deliberately
 // avoid spinning up LanceDB or a real embedder — we only need to verify
@@ -31,6 +32,22 @@ interface NoteSpec {
   mtime?: number;
 }
 
+function applyStoreOpts<T extends { path: string; score: number }>(
+  rows: T[],
+  k: number,
+  o: SearchOpts,
+): T[] {
+  return rows
+    .filter(
+      (r) =>
+        r.path !== o.excludePath &&
+        !(o.minScore !== undefined && o.minScore > 0 && r.score < o.minScore) &&
+        (o.pathFilter ? o.pathFilter(r.path) : true),
+    )
+    .sort((a, b) => b.score - a.score)
+    .slice(0, k);
+}
+
 function makeDeps(opts: {
   notes: NoteSpec[];
   backlinks?: Record<string, string[]>;
@@ -38,12 +55,13 @@ function makeDeps(opts: {
   search?: (
     vec: Float32Array,
     k: number,
-    opts?: { excludePath?: string },
+    opts?: SearchOpts,
   ) => Promise<SearchHit[]>;
   searchTasks?: (
     vec: Float32Array,
     k: number,
     filter: TaskDoneFilter,
+    opts?: SearchOpts,
   ) => Promise<TaskHit[]>;
   perms?: Record<string, { read: boolean; write: boolean }>;
   enabled?: boolean;
@@ -84,9 +102,22 @@ function makeDeps(opts: {
   const pipeline = {
     minScore: opts.minScore ?? 0,
     embed: opts.embed ?? (async (texts: string[]) => texts.map(() => makeVec([1, 0, 0]))),
+    // Stubs return candidate rows; the wrapper applies SearchOpts + top-k
+    // the way RagStore does, so the queries layer is tested end to end.
     store: {
-      search: opts.search ?? (async () => []),
-      searchTasks: opts.searchTasks ?? (async () => []),
+      search: async (v: Float32Array, k: number, o: SearchOpts = {}) =>
+        applyStoreOpts(await (opts.search ?? (async () => []))(v, k, o), k, o),
+      searchTasks: async (
+        v: Float32Array,
+        k: number,
+        f: TaskDoneFilter,
+        o: SearchOpts = {},
+      ) =>
+        applyStoreOpts(
+          await (opts.searchTasks ?? (async () => []))(v, k, f, o),
+          k,
+          o,
+        ),
     },
   } as unknown as RagDeps["pipeline"];
 
@@ -409,5 +440,36 @@ describe("queries — V54 perm + composition", () => {
     const out = await semanticOutline(deps, "x.md", 0.5);
     expect(out.length).toBe(1);
     expect(out[0]!.chunkCount).toBeGreaterThanOrEqual(1);
+  });
+
+  test("related returns k distinct notes even when one note has many top chunks", async () => {
+    const deps = makeDeps({
+      notes: [{ path: "a.md", body: "# A\n\nseed text" }],
+      search: async () => [
+        ...Array.from({ length: 30 }, (_, i) => hit("b.md", 0.95 - i * 0.001, i)),
+        hit("c.md", 0.7),
+      ],
+    });
+    const out = await related(deps, "a.md", 2);
+    expect(out.map((h) => h.path)).toEqual(["b.md", "c.md"]);
+  });
+
+  test("orphans default cutoff follows minScore (orphan ⇔ nothing Related would show)", async () => {
+    expect(defaultMinIsolation(0.6)).toBeCloseTo(0.4);
+    expect(defaultMinIsolation(0)).toBe(0.35);
+    const mk = (nearest: number) =>
+      makeDeps({
+        notes: [
+          { path: "x.md", body: "# X\n\nseed" },
+          { path: "y.md", body: "# Y\n\nother" },
+        ],
+        backlinks: { "y.md": ["x.md"] },
+        minScore: 0.6,
+        search: async () => [hit("y.md", nearest)],
+      });
+    // 0.62 ≥ minScore → would show in Related → not an orphan.
+    expect((await orphans(mk(0.62))).map((o) => o.path)).toEqual([]);
+    // 0.55 < minScore → orphan.
+    expect((await orphans(mk(0.55))).map((o) => o.path)).toEqual(["x.md"]);
   });
 });
