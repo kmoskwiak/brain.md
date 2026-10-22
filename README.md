@@ -772,27 +772,6 @@ Want to nudge one of these up the list? Open an issue or PR.
 
 ---
 
-## 💖 Sponsor
-
-folio is built on [brain.md](https://github.com/mi4uu/brain.md), a solo
-open-source effort by Michał Lipiński. If folio is useful to you and you
-can chip in, consider sponsoring the original author — that work is what
-made this fork possible.
-
-<p align="center">
-  <a href="https://github.com/sponsors/mi4uu">
-    <img
-      src="https://img.shields.io/badge/Sponsor-mi4uu-ec4899?logo=github-sponsors&logoColor=white&style=for-the-badge"
-      alt="Sponsor mi4uu on GitHub"
-    />
-  </a>
-</p>
-
-> The **Sponsor the original brain.md author** link in folio's
-> **About** dialog leads here.
-
----
-
 ## 🤝 Contributing
 
 Contributions welcome.

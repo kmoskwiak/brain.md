@@ -1,7 +1,4 @@
 import { EditorView } from "@codemirror/view";
-import {
-  InfoCircledIcon
-} from "@radix-ui/react-icons";
 import clsx from "clsx";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { RelatedHit } from "./api/client";
@@ -10,7 +7,6 @@ import { gitApi, type GitStatus } from "./api/git";
 import { metaApi, type FolderMeta } from "./api/meta";
 import { settingsApi, type AppSettings } from "./api/settings";
 import type { Backlink, TreeData } from "./api/types";
-import { AboutDialog } from "./components/AboutDialog";
 import { Backlinks } from "./components/Backlinks";
 import { CommandBar } from "./components/CommandBar";
 import { Editor } from "./components/Editor";
@@ -118,7 +114,6 @@ export function App() {
   const [folderMeta, setFolderMeta] = useState<FolderMeta>({ version: 1, icons: {}, colors: {} });
   const [iconPickerPath, setIconPickerPath] = useState<string | null>(null);
   const [permsPath, setPermsPath] = useState<string | null>(null);
-  const [showAbout, setShowAbout] = useState(false);
   // --view-only server: preview-only UI. The server enforces it regardless;
   // this just hides controls that would fail. null = not known yet.
   const [viewOnly, setViewOnly] = useState<boolean | null>(null);
@@ -927,9 +922,6 @@ export function App() {
             <SettingsIcon />
           </IconBtn>
         )}
-        <IconBtn label="About folio" onClick={() => setShowAbout(true)}>
-          <InfoCircledIcon />
-        </IconBtn>
         {gitStatus?.enabled ? (
           <div className="topbar-center">
             <GitStatusChip status={gitStatus} />
@@ -1237,8 +1229,6 @@ export function App() {
           onClose={() => setPermsPath(null)}
         />
       ) : null}
-
-      <AboutDialog open={showAbout} onOpenChange={setShowAbout} />
 
     </div>
     <Toaster />
