@@ -3,6 +3,7 @@ import { loadConfig } from "./config";
 import { parseArgs, getUsage, CliError } from "./cli";
 import { mkdir } from "node:fs/promises";
 import { VERSION } from "./version";
+import { describeProvider } from "./rag/provider";
 
 async function main() {
   let action;
@@ -74,6 +75,7 @@ async function main() {
   // if empty. Errors surface via console but never crash the server.
   if (loaded.rag.enabled) {
     try {
+      ragStore.setDim(describeProvider(loaded.rag).dim);
       await ragStore.open();
       ragPipeline.applyConfig(loaded.rag);
       ragPipeline.start();

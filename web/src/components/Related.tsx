@@ -38,7 +38,7 @@ export function Related({ state, onOpen }: Props) {
         >
           <div className="from">{h.path.replace(/\.md$/, "")}</div>
           <div className="ctx">
-            {(h.score * 100).toFixed(0)}% · L{h.lineStart}–{h.lineEnd} ·{" "}
+            {(Math.max(0, h.score) * 100).toFixed(0)}% · L{h.lineStart}–{h.lineEnd} ·{" "}
             {h.snippet.slice(0, 120)}
             {h.snippet.length > 120 ? "…" : ""}
           </div>

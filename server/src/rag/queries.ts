@@ -71,6 +71,36 @@ async function filterReadable<T extends { path: string }>(
   );
 }
 
+// Keep the best-scoring hit per path, preserving score order.
+function bestPerPath<T extends { path: string; score: number }>(rows: T[]): T[] {
+  const best = new Map<string, T>();
+  for (const h of rows) {
+    const prev = best.get(h.path);
+    if (!prev || h.score > prev.score) best.set(h.path, h);
+  }
+  return [...best.values()].sort((a, b) => b.score - a.score);
+}
+
+// ---------------- similar ----------------
+
+export async function similarNotes(
+  deps: RagDeps,
+  q: string,
+  k = 5,
+  scope?: Scope,
+): Promise<SearchHit[]> {
+  assertEnabled(deps);
+  if (q.trim() === "") return [];
+  const prefixes = normalizeScope(scope);
+  const [vec] = await deps.pipeline.embed([q]);
+  // Over-fetch so the scope/perm filter still leaves ~k hits.
+  const fetchK = prefixes.length > 0 ? k + 50 : k + 5;
+  const hits = await deps.pipeline.store.search(vec!, fetchK);
+  const minScore = deps.pipeline.minScore;
+  const filtered = await filterReadable(deps.vault, hits, prefixes);
+  return filtered.filter((h) => h.score >= minScore).slice(0, k);
+}
+
 // ---------------- related ----------------
 
 export interface RelatedHit extends SearchHit {}
@@ -95,11 +125,17 @@ export async function related(
   // this note about".
   const prefixes = normalizeScope(scope);
   const [vec] = await deps.pipeline.embed([chunks[0]!.text]);
-  // Over-fetch so the scope/perm filter still leaves ~k hits.
-  const fetchK = prefixes.length > 0 ? k + 50 : k + 5;
-  const hits = await deps.pipeline.store.search(vec!, fetchK);
+  // Over-fetch so the scope/perm filter + per-path dedupe (a note matches
+  // via several chunks) still leave ~k distinct notes.
+  const fetchK = prefixes.length > 0 ? k * 4 + 50 : k * 4 + 5;
+  const hits = await deps.pipeline.store.search(vec!, fetchK, {
+    excludePath: path,
+  });
+  const minScore = deps.pipeline.minScore;
   const filtered = await filterReadable(deps.vault, hits, prefixes);
-  return filtered.filter((h) => h.path !== path).slice(0, k);
+  return bestPerPath(
+    filtered.filter((h) => h.path !== path && h.score >= minScore),
+  ).slice(0, k);
 }
 
 // ---------------- context ----------------
@@ -132,14 +168,10 @@ export async function contextForQuery(
     prefixes.length > 0 ? 80 : 20,
   );
   const readable = await filterReadable(deps.vault, candidates, prefixes);
+  const minScore = deps.pipeline.minScore;
 
   // Greedy pack ordered by score, dedupe by path (highest-score per path).
-  const bestByPath = new Map<string, SearchHit>();
-  for (const h of readable) {
-    const prev = bestByPath.get(h.path);
-    if (!prev || h.score > prev.score) bestByPath.set(h.path, h);
-  }
-  const ordered = [...bestByPath.values()].sort((a, b) => b.score - a.score);
+  const ordered = bestPerPath(readable.filter((h) => h.score >= minScore));
 
   const parts: string[] = [];
   const sources: ContextResult["sources"] = [];
@@ -327,10 +359,12 @@ export async function orphans(
   const out: OrphanNote[] = [];
   for (let n = 0; n < validIdx.length; n++) {
     const p = noBacklinks[validIdx[n]!]!;
-    const hits = await deps.pipeline.store.search(vecs[n]!, 5);
+    const hits = await deps.pipeline.store.search(vecs[n]!, 5, {
+      excludePath: p,
+    });
     // Exclude self; the top remaining score is the closest neighbour.
     const others = hits.filter((h) => h.path !== p);
-    const topSim = others[0]?.score ?? 0;
+    const topSim = Math.max(0, others[0]?.score ?? 0);
     const isolation = 1 - topSim;
     if (isolation >= minIsolation) {
       out.push({
@@ -522,6 +556,7 @@ export async function similarTasks(
   const [vec] = await deps.pipeline.embed([query]);
   const fetchK = prefixes.length > 0 ? k + 50 : k + 5;
   const hits = await deps.pipeline.store.searchTasks(vec!, fetchK, filter);
+  const minScore = deps.pipeline.minScore;
   const filtered = await filterReadable(deps.vault, hits, prefixes);
-  return filtered.slice(0, k);
+  return filtered.filter((h) => h.score >= minScore).slice(0, k);
 }

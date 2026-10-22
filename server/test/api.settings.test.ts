@@ -59,4 +59,36 @@ describe("settings PATCH — rag must round-trip (regression)", () => {
     expect(patched.json.rag.openaiCompat.baseURL).toBe("http://example.test/v1");
     expect(patched.json.rag.openaiCompat.dim).toBe(256);
   });
+
+  test("rag minScore defaults per provider and round-trips; out-of-range is ignored", async () => {
+    const before = await fetchJson("GET", "/api/settings");
+    expect(before.json.rag.local.minScore).toBe(0.6);
+
+    const patched = await fetchJson("PATCH", "/api/settings", {
+      rag: {
+        local: { model: "Xenova/bge-small-en-v1.5", dim: 384, minScore: 0.55 },
+        openaiCompat: {
+          baseURL: "http://example.test/v1",
+          model: "fake-embed",
+          dim: 256,
+          minScore: 7,
+        },
+      },
+    });
+    expect(patched.status).toBe(200);
+    expect(patched.json.rag.local.minScore).toBe(0.55);
+    expect(patched.json.rag.openaiCompat.minScore).toBe(0);
+
+    const after = await fetchJson("GET", "/api/settings");
+    expect(after.json.rag.local.minScore).toBe(0.55);
+  });
+
+  test("local model/dim are pinned to the bundled bge-small", async () => {
+    const patched = await fetchJson("PATCH", "/api/settings", {
+      rag: { local: { model: "Xenova/all-MiniLM-L6-v2", dim: 768 } },
+    });
+    expect(patched.status).toBe(200);
+    expect(patched.json.rag.local.model).toBe("Xenova/bge-small-en-v1.5");
+    expect(patched.json.rag.local.dim).toBe(384);
+  });
 });

@@ -1,4 +1,7 @@
 import { describe, test, expect } from "bun:test";
+import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
   contextForQuery,
   semanticOutline,
@@ -7,6 +10,7 @@ import {
   orphans,
   related,
   similarTasks,
+  similarNotes,
   RagDisabledError,
   type RagDeps,
 } from "../src/rag/queries";
@@ -31,7 +35,11 @@ function makeDeps(opts: {
   notes: NoteSpec[];
   backlinks?: Record<string, string[]>;
   embed?: (texts: string[]) => Promise<Float32Array[]>;
-  search?: (vec: Float32Array, k: number) => Promise<SearchHit[]>;
+  search?: (
+    vec: Float32Array,
+    k: number,
+    opts?: { excludePath?: string },
+  ) => Promise<SearchHit[]>;
   searchTasks?: (
     vec: Float32Array,
     k: number,
@@ -39,6 +47,8 @@ function makeDeps(opts: {
   ) => Promise<TaskHit[]>;
   perms?: Record<string, { read: boolean; write: boolean }>;
   enabled?: boolean;
+  minScore?: number;
+  vaultRoot?: string; // real dir so `.brain/folder-meta.json` perms load
 }): RagDeps {
   const notesByPath = new Map(opts.notes.map((n) => [n.path, n]));
   const vault = {
@@ -50,7 +60,9 @@ function makeDeps(opts: {
     // The folder-perm loader reads `.brain/folders.json`; without that
     // file the loader returns `{ mcp: {} }`, which means default perms
     // (read/write true) for every path — exactly what most tests want.
-    root: "/tmp/nonexistent-brain-queries-test",
+    root: opts.vaultRoot ?? "/tmp/nonexistent-brain-queries-test",
+    abs: (rel: string) =>
+      join(opts.vaultRoot ?? "/tmp/nonexistent-brain-queries-test", rel),
   } as unknown as RagDeps["vault"];
 
   const entries = opts.notes.map((n) => ({
@@ -70,6 +82,7 @@ function makeDeps(opts: {
   } as unknown as RagDeps["index"];
 
   const pipeline = {
+    minScore: opts.minScore ?? 0,
     embed: opts.embed ?? (async (texts: string[]) => texts.map(() => makeVec([1, 0, 0]))),
     store: {
       search: opts.search ?? (async () => []),
@@ -82,6 +95,18 @@ function makeDeps(opts: {
     index,
     pipeline,
     ragEnabled: () => opts.enabled ?? true,
+  };
+}
+
+function hit(path: string, score: number, chunkIndex = 0): SearchHit {
+  return {
+    path,
+    chunkIndex,
+    score,
+    snippet: `${path}#${chunkIndex}`,
+    headingTrail: [],
+    lineStart: 1,
+    lineEnd: 1,
   };
 }
 
@@ -128,6 +153,91 @@ describe("queries — V54 perm + composition", () => {
     });
     const out = await related(deps, "a.md", 5);
     expect(out.map((h) => h.path)).toEqual(["b.md"]);
+  });
+
+  test("related dedupes by path, keeping the best chunk per note", async () => {
+    const deps = makeDeps({
+      notes: [{ path: "a.md", body: "# A\n\nseed text" }],
+      search: async () => [
+        hit("b.md", 0.9, 0),
+        hit("b.md", 0.85, 1),
+        hit("c.md", 0.8, 0),
+        hit("b.md", 0.7, 2),
+      ],
+    });
+    const out = await related(deps, "a.md", 5);
+    expect(out.map((h) => [h.path, h.chunkIndex])).toEqual([
+      ["b.md", 0],
+      ["c.md", 0],
+    ]);
+  });
+
+  test("related asks the store to exclude the seed note's own chunks", async () => {
+    let seen: { excludePath?: string } | undefined;
+    const deps = makeDeps({
+      notes: [{ path: "a.md", body: "# A\n\nseed text" }],
+      search: async (_v, _k, o) => {
+        seen = o;
+        return [hit("b.md", 0.8)];
+      },
+    });
+    await related(deps, "a.md", 5);
+    expect(seen?.excludePath).toBe("a.md");
+  });
+
+  test("related / similar / context drop hits below minScore", async () => {
+    const search = async () => [hit("b.md", 0.75), hit("c.md", 0.45)];
+    const deps = makeDeps({
+      notes: [{ path: "a.md", body: "# A\n\nseed text" }],
+      search,
+      minScore: 0.6,
+    });
+    expect((await related(deps, "a.md", 5)).map((h) => h.path)).toEqual(["b.md"]);
+    expect((await similarNotes(deps, "q", 5)).map((h) => h.path)).toEqual(["b.md"]);
+    const ctx = await contextForQuery(deps, "q");
+    expect(ctx.sources.map((s) => s.path)).toEqual(["b.md"]);
+  });
+
+  test("orphans: a long note's own chunks don't hide its neighbours", async () => {
+    // Seed note has 6 chunks that all outrank the real neighbour; with a
+    // k=5 fetch every hit was self → topSim 0 → falsely isolated. Stub
+    // mirrors RagStore: excludePath is applied before the top-k cut.
+    const deps = makeDeps({
+      notes: [
+        { path: "long.md", body: "# Long\n\nseed" },
+        { path: "near.md", body: "# Near\n\nlinked" },
+      ],
+      backlinks: { "near.md": ["long.md"] },
+      search: async (_v, k, o) =>
+        [
+          ...Array.from({ length: 6 }, (_, i) => hit("long.md", 0.99 - i * 0.01, i)),
+          hit("near.md", 0.8),
+        ]
+          .filter((h) => h.path !== o?.excludePath)
+          .slice(0, k),
+    });
+    const out = await orphans(deps, 10, 0.35);
+    expect(out.map((o) => o.path)).not.toContain("long.md");
+  });
+
+  test("similarNotes drops read-denied folders (MCP perms)", async () => {
+    const root = await mkdtemp(join(tmpdir(), "brain-queries-perms-"));
+    try {
+      await mkdir(join(root, ".brain"), { recursive: true });
+      await writeFile(
+        join(root, ".brain", "folder-meta.json"),
+        JSON.stringify({ mcp: { private: { read: false, write: false } } }),
+      );
+      const deps = makeDeps({
+        notes: [],
+        vaultRoot: root,
+        search: async () => [hit("private/secret.md", 0.9), hit("public.md", 0.8)],
+      });
+      const out = await similarNotes(deps, "q", 5);
+      expect(out.map((h) => h.path)).toEqual(["public.md"]);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
   });
 
   test("contextForQuery packs blocks until budget exceeded and reports truncation", async () => {

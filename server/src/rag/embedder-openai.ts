@@ -100,6 +100,12 @@ export class OpenAICompatEmbedder implements Embedder {
           res.status,
         );
       }
+      // The store scores by dot product, so vectors must be unit length.
+      // OpenAI/Ollama already normalise; LM Studio & others may not.
+      let norm = 0;
+      for (const x of arr) norm += x * x;
+      norm = Math.sqrt(norm) || 1;
+      for (let d = 0; d < arr.length; d++) arr[d]! /= norm;
       return arr;
     });
   }

@@ -8,6 +8,7 @@ import { GitRepo } from "./git/git";
 import { Autocommit } from "./git/autocommit";
 import { SettingsStore } from "./settings/settings";
 import { RagStore } from "./rag/store";
+import { describeProvider } from "./rag/provider";
 import { RagPipeline } from "./rag/pipeline";
 import { DEFAULT_RAG_CONFIG } from "./rag/types";
 import { treeRoutes } from "./api/tree";
@@ -60,16 +61,15 @@ export function createApp(opts: AppOptions = {}) {
   });
   vault.onMutation((e) => autocommit.notify(e.path));
 
-  // RAG pipeline — store dim is taken from the currently selected provider's
-  // dim. SettingsStore.load() will overwrite this cfg with the persisted one;
-  // index.ts is responsible for calling pipeline.applyConfig(persistedCfg)
-  // and triggering the initial reindex after settings.load() returns.
+  // RAG pipeline — built from defaults. SettingsStore.load() will overwrite
+  // this cfg with the persisted one; index.ts is responsible for calling
+  // ragStore.setDim() + pipeline.applyConfig(persistedCfg) before open and
+  // triggering the initial reindex after settings.load() returns.
   const initialRagCfg = DEFAULT_RAG_CONFIG;
-  const ragDim =
-    initialRagCfg.provider === "local"
-      ? initialRagCfg.local.dim
-      : initialRagCfg.openaiCompat.dim;
-  const ragStore = new RagStore(join(vault.root, ".brain", "lance"), ragDim);
+  const ragStore = new RagStore(
+    join(vault.root, ".brain", "lance"),
+    describeProvider(initialRagCfg).dim,
+  );
   const ragPipeline = new RagPipeline(vault, ragStore, initialRagCfg);
 
   const authStore = new AuthStore(vault);

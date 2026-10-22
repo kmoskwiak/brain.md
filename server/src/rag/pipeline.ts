@@ -162,6 +162,11 @@ export class RagPipeline {
     await this.store.deleteTasksByPath(rel);
   }
 
+  // Raw-cosine floor for the active provider; hits below it are dropped.
+  get minScore(): number {
+    return describeProvider(this.cfg).minScore;
+  }
+
   // Public encode hook for ad-hoc queries (used by /api/similar).
   async embed(texts: string[]): Promise<Float32Array[]> {
     return this.embedder.embed(texts);
@@ -207,6 +212,9 @@ export class RagPipeline {
         this.lastProbeError = msg;
       }
     }
+    // Drop rows for notes deleted while the server was down. Fresh listing
+    // (not `notes`) so a note created mid-reindex keeps its rows.
+    await this.store.pruneExcept(new Set(await this.vault.listAllNotes()));
     if (errors.length > 0) {
       console.warn(`[rag] reindex skipped ${skipped} of ${notes.length}; first errors:`, errors.slice(0, 5));
     }

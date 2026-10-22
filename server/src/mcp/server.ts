@@ -28,8 +28,7 @@ import {
   weeklyDigest as qDigest,
   compareNotes as qCompare,
   similarTasks as qSimilarTasks,
-  normalizeScope,
-  inScope,
+  similarNotes as qSimilarNotes,
   RagDisabledError,
   type RagDeps,
 } from "../rag/queries";
@@ -110,6 +109,7 @@ function logCall(name: string, args: unknown, ok: boolean): void {
 // both objects on every /mcp request inside mcpRoutes() below.
 function registerHandlers(server: McpServer, deps: McpDeps): void {
   const { vault, index, pipeline, ragEnabled } = deps;
+  const ragDeps: RagDeps = { vault, index, pipeline, ragEnabled };
 
   // ---------------- tools ----------------
 
@@ -166,18 +166,9 @@ function registerHandlers(server: McpServer, deps: McpDeps): void {
           ],
         };
       }
-      const prefixes = normalizeScope(scope);
-      const limit = k ?? 5;
-      const [vec] = await pipeline.embed([query]);
-      // Over-fetch under a scope so enough in-scope hits survive the filter.
-      const raw = await pipeline.store.search(
-        vec!,
-        prefixes.length > 0 ? limit + 50 : limit,
-      );
-      const hits =
-        prefixes.length > 0
-          ? raw.filter((h) => inScope(h.path, prefixes)).slice(0, limit)
-          : raw;
+      // Shared query layer: applies MCP folder read-perms, scope and the
+      // provider's min-score floor (this tool used to skip the perm check).
+      const hits = await qSimilarNotes(ragDeps, query, k ?? 5, scope);
       logCall("similar_notes", { query, k, scope }, true);
       return { content: [{ type: "text", text: JSON.stringify(hits) }] };
     },
@@ -364,8 +355,6 @@ function registerHandlers(server: McpServer, deps: McpDeps): void {
   }
 
   // ---------------- V54: RAG-derived tools ----------------
-
-  const ragDeps: RagDeps = { vault, index, pipeline, ragEnabled };
 
   const ragError = (name: string, args: unknown, err: unknown) => {
     logCall(name, args, false);

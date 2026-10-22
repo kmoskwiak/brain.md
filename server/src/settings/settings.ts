@@ -97,13 +97,12 @@ function mergeRag(cur: RagConfig, patch?: Partial<RagConfig>): RagConfig {
       patch.provider === "local" || patch.provider === "openai-compat"
         ? patch.provider
         : cur.provider,
+    // The WASM embedder only ships bge-small: model/dim are fixed. Always
+    // reset them so values saved by older builds can't break embedding.
     local: {
-      model:
-        typeof patch.local?.model === "string" ? patch.local.model : cur.local.model,
-      dim:
-        typeof patch.local?.dim === "number" && patch.local.dim > 0
-          ? patch.local.dim
-          : cur.local.dim,
+      model: DEFAULT_RAG_CONFIG.local.model,
+      dim: DEFAULT_RAG_CONFIG.local.dim,
+      minScore: validScore(patch.local?.minScore) ?? cur.local.minScore,
     },
     openaiCompat: {
       baseURL:
@@ -122,8 +121,14 @@ function mergeRag(cur: RagConfig, patch?: Partial<RagConfig>): RagConfig {
         typeof patch.openaiCompat?.dim === "number" && patch.openaiCompat.dim > 0
           ? patch.openaiCompat.dim
           : cur.openaiCompat.dim,
+      minScore: validScore(patch.openaiCompat?.minScore) ?? cur.openaiCompat.minScore,
     },
   };
+}
+
+// Raw cosine floor ∈ [-1, 1]; anything else falls back to the current value.
+function validScore(v: unknown): number | undefined {
+  return typeof v === "number" && v >= -1 && v <= 1 ? v : undefined;
 }
 
 function mergeWithDefaults(p: Partial<AppSettings>): AppSettings {

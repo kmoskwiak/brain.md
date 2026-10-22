@@ -2,6 +2,7 @@ import { Elysia, t } from "elysia";
 import type { SettingsStore } from "../settings/settings";
 import type { Autocommit } from "../git/autocommit";
 import type { RagPipeline } from "../rag/pipeline";
+import { describeProvider } from "../rag/provider";
 import { asError } from "./errors";
 
 export function settingsRoutes(
@@ -24,6 +25,7 @@ export function settingsRoutes(
           // - enabled flipped on → ensureRunning() opens store + subscribes
           // - any rag change → applyConfig() updates embedder if model/provider changed
           ragPipeline.applyConfig(next.rag);
+          ragPipeline.store.setDim(describeProvider(next.rag).dim);
           if (!prev.rag.enabled && next.rag.enabled) {
             // V59: open the store + probe the embedder up-front so the UI
             // can show a real error banner the moment the user flips Enable
@@ -65,6 +67,7 @@ export function settingsRoutes(
                 t.Object({
                   model: t.String(),
                   dim: t.Number(),
+                  minScore: t.Optional(t.Number()),
                 }),
               ),
               openaiCompat: t.Optional(
@@ -73,6 +76,7 @@ export function settingsRoutes(
                   model: t.String(),
                   apiKey: t.Optional(t.String()),
                   dim: t.Number(),
+                  minScore: t.Optional(t.Number()),
                 }),
               ),
             }),

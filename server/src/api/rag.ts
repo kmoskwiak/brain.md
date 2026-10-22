@@ -79,7 +79,7 @@ export function ragRoutes(
         try {
           const vec = (await pipeline.embed([q]))[0]!;
           const hits = await pipeline.store.search(vec, k);
-          return hits;
+          return hits.filter((h) => h.score >= pipeline.minScore);
         } catch (e) {
           set.status = 500;
           return {
@@ -99,9 +99,11 @@ export function ragRoutes(
         chunks = await pipeline.store.countAll();
         if (chunks > 0) {
           const distinct = await pipeline.store.distinctProviderModel();
-          needsReindex = distinct.some(
-            (d) => d.providerId !== desc.providerId || d.modelId !== desc.modelId,
-          );
+          const dims = await pipeline.store.distinctDims();
+          needsReindex =
+            distinct.some(
+              (d) => d.providerId !== desc.providerId || d.modelId !== desc.modelId,
+            ) || dims.some((d) => d !== desc.dim);
         }
       } catch {
         // store not opened or empty → leave defaults
