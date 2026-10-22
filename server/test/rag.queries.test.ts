@@ -229,26 +229,30 @@ describe("queries — V54 perm + composition", () => {
     expect(ctx.sources.map((s) => s.path)).toEqual(["b.md"]);
   });
 
-  test("orphans: a long note's own chunks don't hide its neighbours", async () => {
-    // Seed note has 6 chunks that all outrank the real neighbour; with a
-    // k=5 fetch every hit was self → topSim 0 → falsely isolated. Stub
-    // mirrors RagStore: excludePath is applied before the top-k cut.
+  test("orphans: a long note's own chunks are excluded from its nearest neighbour", async () => {
+    // long.md has 6 chunks that match its seed almost perfectly; its only
+    // other neighbour is unrelated (0.3). If the store isn't told to exclude
+    // long.md, a self-chunk becomes the "nearest neighbour" (0.99) and the
+    // note is wrongly reported as connected.
+    const excluded: Array<string | undefined> = [];
     const deps = makeDeps({
       notes: [
         { path: "long.md", body: "# Long\n\nseed" },
-        { path: "near.md", body: "# Near\n\nlinked" },
+        { path: "far.md", body: "# Far\n\nlinked" },
       ],
-      backlinks: { "near.md": ["long.md"] },
-      search: async (_v, k, o) =>
-        [
+      backlinks: { "far.md": ["long.md"] },
+      search: async (_v, _k, o) => {
+        excluded.push(o?.excludePath);
+        return [
           ...Array.from({ length: 6 }, (_, i) => hit("long.md", 0.99 - i * 0.01, i)),
-          hit("near.md", 0.8),
-        ]
-          .filter((h) => h.path !== o?.excludePath)
-          .slice(0, k),
+          hit("far.md", 0.3),
+        ];
+      },
     });
     const out = await orphans(deps, 10, 0.35);
-    expect(out.map((o) => o.path)).not.toContain("long.md");
+    expect(excluded).toEqual(["long.md"]);
+    expect(out.map((o) => o.path)).toEqual(["long.md"]);
+    expect(out[0]!.isolation).toBeCloseTo(0.7);
   });
 
   test("similarNotes drops read-denied folders (MCP perms)", async () => {
