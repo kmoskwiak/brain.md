@@ -15,6 +15,8 @@ interface PreviewProps {
 export interface PreviewHandle {
   scrollToLine: (line: number, opts?: { behavior?: ScrollBehavior; anchorY?: number }) => void;
   setActiveLine: (line: number) => void;
+  // source line of the block at the top of the viewport; null = nothing rendered
+  topLine: () => number | null;
 }
 
 export const Preview = forwardRef<PreviewHandle, PreviewProps>(function Preview(
@@ -76,6 +78,20 @@ export const Preview = forwardRef<PreviewHandle, PreviewProps>(function Preview(
     return container.scrollTop + (eRect.top - cRect.top);
   }
 
+  function topLine(): number | null {
+    const container = ref.current;
+    const items = blocksRef.current;
+    if (!container || items.length === 0) return null;
+    const probe = container.scrollTop + 24;
+    let line = items[0]!.line;
+    for (const it of items) {
+      const top = blockTopWithinContainer(it.el, container);
+      if (top <= probe) line = it.line;
+      else break;
+    }
+    return line;
+  }
+
   useImperativeHandle(forwardedRef, () => ({
     scrollToLine(line, opts) {
       const container = ref.current;
@@ -99,6 +115,7 @@ export const Preview = forwardRef<PreviewHandle, PreviewProps>(function Preview(
       activeLineRef.current = line;
       applyActive(line);
     },
+    topLine,
   }));
 
   // scroll listener (only fires when not programmatic)
@@ -112,16 +129,8 @@ export const Preview = forwardRef<PreviewHandle, PreviewProps>(function Preview(
       if (!cb || !container) return;
       if (raf) cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => {
-        const items = blocksRef.current;
-        if (!container || items.length === 0) return;
-        const probe = container.scrollTop + 24;
-        let line = items[0]!.line;
-        for (const it of items) {
-          const top = blockTopWithinContainer(it.el, container);
-          if (top <= probe) line = it.line;
-          else break;
-        }
-        cb(line);
+        const line = topLine();
+        if (line !== null) cb(line);
       });
     }
     container.addEventListener("scroll", onScroll, { passive: true });
