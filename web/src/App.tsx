@@ -348,6 +348,13 @@ export function App() {
     void refreshTree();
   }, [refreshTree]);
 
+  // Window/taskbar title — the only place the note name shows in the OS
+  // once the PWA title bar is hidden (Window Controls Overlay).
+  useEffect(() => {
+    const name = path ? path.replace(/\.md$/, "").split("/").pop() : null;
+    document.title = name ? `${name} — folio` : "folio";
+  }, [path]);
+
   useEffect(() => {
     api
       .serverInfo()

@@ -61,6 +61,28 @@
     padding-right: var(--space-2);
   }
 }
+/* Installed PWA with the title bar hidden (Window Controls Overlay): the
+   topbar becomes the window's drag handle, and is padded so the OS window
+   controls (right on Windows/Linux, traffic lights left on macOS) never
+   cover our buttons. env(titlebar-area-*) only resolves in this mode. */
+@media (display-mode: window-controls-overlay) {
+  .topbar {
+    -webkit-app-region: drag;
+    app-region: drag;
+    padding-left: calc(env(titlebar-area-x, 0px) + var(--space-3));
+    padding-right: calc(
+      100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw) + var(--space-3)
+    );
+  }
+  .topbar button,
+  .topbar a,
+  .topbar input,
+  .topbar [role="button"],
+  .topbar-center {
+    -webkit-app-region: no-drag;
+    app-region: no-drag;
+  }
+}
 
 .topbar .brand {
   display: inline-flex;

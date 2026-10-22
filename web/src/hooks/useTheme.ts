@@ -39,6 +39,16 @@ export function useTheme(): { theme: Theme; setTheme: (t: Theme) => void; resolv
     return () => mq.removeEventListener("change", compute);
   }, [theme]);
 
+  // Keep the browser/PWA title-bar colour in sync with the in-app theme
+  // (it paints behind the OS window controls when the title bar is hidden).
+  useEffect(() => {
+    const color = getComputedStyle(document.documentElement).getPropertyValue("--bg-surface").trim();
+    if (!color) return;
+    document.querySelectorAll('meta[name="theme-color"]').forEach((m) => {
+      m.setAttribute("content", color);
+    });
+  }, [theme, resolved]);
+
   const setTheme = (t: Theme) => {
     try {
       localStorage.setItem(KEY, t);
